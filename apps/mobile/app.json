@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Квест",
+    "slug": "quest-platform",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "quest",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f172a",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.questplatform",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Местоположение нужно, чтобы засчитать задание, когда вы дошли до точки.",
+        "NSCameraUsageDescription": "Камера нужна, чтобы сканировать QR-коды заданий."
+      }
+    },
+    "android": {
+      "package": "com.example.questplatform",
+      "adaptiveIcon": { "backgroundColor": "#0f172a" },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"],
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Местоположение нужно, чтобы засчитать задание на точке." }
+      ],
+      ["expo-camera", { "cameraPermission": "Камера нужна для сканирования QR-кодов заданий." }]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:8080",
+      "eventSlug": "city-quest"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

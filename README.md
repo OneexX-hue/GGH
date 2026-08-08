@@ -1,0 +1,94 @@
+# Квест Платформа
+
+Платформа для городских квестов: регистрация команд, задания с кодами, серверный
+таймер, панель организатора и оценка качества. Работает как **веб-приложение**,
+**Android**- и **iOS**-приложение поверх одного API.
+
+Полная спецификация и архитектурные решения — [`SPEC.md`](./SPEC.md).
+
+## Быстрый старт
+
+```bash
+pnpm install
+
+# API (порт 8080). Без ADMIN_TOKEN сервер намеренно не стартует.
+ADMIN_TOKEN=secret pnpm --filter @workspace/api-server run dev
+
+# Веб (порт 21234), в отдельном терминале
+pnpm --filter @workspace/quest run dev
+
+# Мобильное приложение
+pnpm --filter @workspace/quest-mobile run dev
+```
+
+При первом запуске API создаёт `apps/api/data/quest.db`, применяет миграции
+и заводит демо-событие `city-quest` с 10 заданиями и тремя кодами качества.
+
+Открыть: <http://localhost:21234> — регистрация, `/game` — игра, `/admin` — организатор.
+
+## Команды
+
+| Команда | Что делает |
+|---|---|
+| `pnpm run typecheck` | Проверка типов по всем пакетам |
+| `pnpm run test` | Тесты (ядро, API) |
+| `pnpm run build` | Сборка веба и CJS-бандла API |
+| `pnpm run gen:openapi` | Перегенерация `lib/api-spec/openapi.yaml` из Zod-схем |
+| `pnpm run dev:api` / `dev:web` | Ярлыки для запуска |
+
+Запуск `pnpm run dev` в корне не предусмотрен: приложений несколько, запускать
+их надо по отдельности через `--filter`.
+
+## Структура
+
+```
+apps/api      Express 5 + SQLite (node:sqlite)
+apps/web      Vite + React 19 + Tailwind v4 + Wouter + TanStack Query
+apps/mobile   Expo (React Native), expo-router, камера/QR, геолокация
+lib/core      Zod-схемы, таймер, гео, офлайн-очередь — общие для всех клиентов
+lib/db        Схема БД, миграции, мапперы строк
+lib/api-client Транспорт + хуки TanStack Query — общие для веба и мобилки
+lib/api-spec  Генератор openapi.yaml
+```
+
+## Переменные окружения
+
+**API**
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `ADMIN_TOKEN` | — (обязательна) | Секрет панели организатора |
+| `PORT` | `8080` | Порт |
+| `DB_PATH` | `data/quest.db` | Файл SQLite |
+| `ALLOWED_ORIGINS` | `*` | Список origin через запятую |
+
+**Веб** — `VITE_API_URL` (пусто = прокси Vite), `VITE_EVENT_SLUG` (`city-quest`).
+
+**Мобилка** — `extra.apiUrl` и `extra.eventSlug` в `apps/mobile/app.json`.
+Для сборок — `EXPO_PUBLIC_API_URL` в `eas.json`.
+
+## Сборка мобильных приложений
+
+Локально приложение запускается через Expo Go / dev-client. Для магазинов:
+
+```bash
+npm install -g eas-cli && eas login
+cd apps/mobile
+eas build --platform android --profile preview   # APK для внутренней раздачи
+eas build --platform ios --profile production    # требует Apple Developer Program
+```
+
+Понадобятся учётные записи: Apple Developer Program (99 $/год) и Google Play
+Console (25 $ разово). Перед сборкой заменить `bundleIdentifier` и `package`
+в `app.json` на свои.
+
+## Требования
+
+Node.js **22.5+** — используется встроенный `node:sqlite`, внешних зависимостей
+для БД нет. На Node 22 модуль помечен экспериментальным и печатает предупреждение
+при старте; это ожидаемо.
+
+## Что ещё не сделано
+
+Фото-задания, push-уведомления, интерфейс судьи, админка в мобильном приложении,
+выбор события в UI. Подробности и причины — раздел 10 в [`SPEC.md`](./SPEC.md).
