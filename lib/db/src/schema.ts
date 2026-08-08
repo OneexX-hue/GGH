@@ -120,4 +120,27 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX idx_attempt_team_time ON attempt_log(team_id, created_at);
     `,
   },
+  {
+    id: '002_event_archives',
+    sql: `
+      -- Снимок итогов игры. Пишется при завершении и, что важнее, ПЕРЕД сбросом:
+      -- сброс стирает submissions безвозвратно, и без снимка итоги прошедшего
+      -- квеста исчезали бы навсегда от одного нажатия в админке.
+      CREATE TABLE event_archives (
+        id           TEXT PRIMARY KEY,
+        event_id     TEXT NOT NULL,
+        event_name   TEXT NOT NULL,
+        event_slug   TEXT NOT NULL,
+        reason       TEXT NOT NULL,
+        finished_at  INTEGER NOT NULL,
+        duration_ms  INTEGER NOT NULL,
+        team_count   INTEGER NOT NULL,
+        results_json TEXT NOT NULL,
+        created_at   INTEGER NOT NULL
+      );
+      CREATE INDEX idx_archives_created ON event_archives(created_at DESC);
+
+      -- Архив переживает удаление самого события, поэтому внешнего ключа нет.
+    `,
+  },
 ];

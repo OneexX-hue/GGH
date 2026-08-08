@@ -21,8 +21,11 @@ export function computeClock(event: Pick<QuestEvent, 'status' | 'durationMs' | '
     return { elapsedMs: 0, remainingMs: durationMs, isRunning: false, isOver: false };
   }
 
-  // На паузе часы замирают в момент pausedAt; текущая пауза ещё не вошла в totalPausedMs.
-  const reference = status === 'paused' && pausedAt !== null ? pausedAt : now;
+  // Часы замирают в момент pausedAt — и на паузе, и на финале: в обоих случаях
+  // там лежит время остановки. Иначе завершённая игра продолжала бы «тратить»
+  // время, и через час после финала показывала бы совсем другой остаток.
+  const frozen = (status === 'paused' || status === 'finished') && pausedAt !== null;
+  const reference = frozen ? pausedAt : now;
   const rawElapsed = reference - startedAt - totalPausedMs;
   const elapsedMs = clamp(rawElapsed, 0, durationMs);
   const remainingMs = durationMs - elapsedMs;

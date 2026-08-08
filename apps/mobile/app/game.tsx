@@ -9,8 +9,10 @@ import {
   useGameClock,
   useGameState,
   useLiveUpdates,
+  useMe,
   useQualityCodes,
   useQueueFlush,
+  useScoreboard,
   useSubmitCode,
   useTasks,
   type PlayerTask,
@@ -30,6 +32,10 @@ export default function Game() {
 
   const tasks = tasksData?.tasks ?? [];
   const solved = tasks.filter((t) => t.solved).length;
+  const published = state?.resultsPublished ?? false;
+
+  // Игра кончилась — вместо списка заданий показываем итоги.
+  if (published) return <Results solvedCount={solved} totalTasks={tasks.length} />;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }} contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -48,9 +54,8 @@ export default function Game() {
         <Text style={{ color: theme.textDim }}>
           Задания {solved} / {tasks.length}
         </Text>
-        <Text style={{ color: theme.accent, fontSize: 20, fontWeight: '900' }}>
-          {tasksData?.totalPoints ?? 0} очков
-        </Text>
+        {/* Счёт скрыт до подведения итогов — намеренно, а не «не загрузилось». */}
+        <Text style={{ color: theme.textFaint }}>Итоги — после игры</Text>
       </View>
 
       {pendingOffline > 0 && (
@@ -72,6 +77,72 @@ export default function Game() {
           onToggle={() => setOpenTaskId(openTaskId === task.id ? null : task.id)}
         />
       ))}
+    </ScrollView>
+  );
+}
+
+/**
+ * Финальное табло. Появляется, когда вышло время или организатор нажал «Стоп».
+ * До этого момента игрок не видел ни своего счёта, ни чужого.
+ */
+function Results({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
+  const { data: board } = useScoreboard();
+  const { data: me } = useMe();
+
+  const rows = board?.rows ?? [];
+  const myIndex = rows.findIndex((row) => row.teamId === me?.team.id);
+  const myRow = myIndex >= 0 ? rows[myIndex] : undefined;
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: theme.bg }} contentContainerStyle={{ padding: 16, gap: 18 }}>
+      <View style={{ alignItems: 'center', gap: 4, paddingTop: 12 }}>
+        <Text style={{ color: theme.textFaint, letterSpacing: 2, fontSize: 12 }}>ИГРА ЗАВЕРШЕНА</Text>
+        <Text style={{ color: theme.text, fontSize: 30, fontWeight: '900' }}>Итоги</Text>
+      </View>
+
+      {myRow && (
+        <View style={{ alignItems: 'center', backgroundColor: theme.surface, borderRadius: 18, padding: 20, gap: 4 }}>
+          <Text style={{ color: theme.accent, fontSize: 56, fontWeight: '900' }}>{myIndex + 1}</Text>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800' }}>{myRow.teamName}</Text>
+          <Text style={{ color: theme.textDim }}>
+            {myRow.totalPoints} очков · {solvedCount} из {totalTasks} заданий
+          </Text>
+          {myRow.qualityPoints > 0 && (
+            <Text style={{ color: theme.textFaint, fontSize: 12 }}>из них {myRow.qualityPoints} за качество</Text>
+          )}
+        </View>
+      )}
+
+      <View style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 14, gap: 4 }}>
+        <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 6 }}>Все команды</Text>
+        {rows.map((row, index) => {
+          const mine = row.teamId === me?.team.id;
+          return (
+            <View
+              key={row.teamId}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                backgroundColor: mine ? theme.surfaceAlt : 'transparent',
+                borderRadius: 8,
+                paddingHorizontal: 8,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ color: index < 3 ? theme.warning : theme.textFaint, fontWeight: '800', width: 22 }}>
+                {index + 1}
+              </Text>
+              <Text style={{ color: theme.text, flex: 1, fontWeight: mine ? '800' : '400' }}>{row.teamName}</Text>
+              <Text style={{ color: theme.textFaint }}>{row.solvedCount}</Text>
+              <Text style={{ color: theme.accent, fontWeight: '800', width: 44, textAlign: 'right' }}>
+                {row.totalPoints}
+              </Text>
+            </View>
+          );
+        })}
+        {rows.length === 0 && <Text style={{ color: theme.textFaint }}>Результатов нет.</Text>}
+      </View>
     </ScrollView>
   );
 }
@@ -129,7 +200,7 @@ function TaskCard({ task, open, canSubmit, initialCode, onToggle }: TaskCardProp
         </Text>
         <Text style={{ color: theme.text, flex: 1, fontWeight: '700', fontSize: 16 }}>{task.title}</Text>
         {task.lat !== null && <Text>📍</Text>}
-        <Text style={{ color: theme.textFaint }}>{task.points}</Text>
+        <Text style={{ color: theme.textFaint }}>{task.points ?? '—'}</Text>
       </Pressable>
 
       {open && (
@@ -288,7 +359,10 @@ function QualityForm({ taskId }: { taskId: string }) {
 /* ------------------------------------------------------------ помощники */
 
 function describe(result: SubmitCodeResponse): string {
-  if (result.status === 'accepted') return `Принято, +${result.pointsAwarded}`;
+  // Пока итоги закрыты, сервер не присылает баллы — показываем только факт зачёта.
+  if (result.status === 'accepted') {
+    return result.pointsAwarded === null ? 'Принято' : `Принято, +${result.pointsAwarded}`;
+  }
   switch (result.reason) {
     case 'wrong_code':
       return 'Код не подходит';

@@ -354,6 +354,43 @@ paths:
       responses:
         "200":
           description: Игроки
+  /api/admin/archives:
+    get:
+      summary: Архив итогов прошедших игр
+      description: Снимок табло пишется при завершении игры и перед сбросом. Сброс удаляет отправки безвозвратно, поэтому архив — единственное, что сохраняет итоги проведённого квеста.
+      security:
+        -
+          adminToken: []
+      responses:
+        "200":
+          description: Снимки, свежие сверху
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventArchive"
+  /api/admin/events/{slug}/scoreboard:
+    get:
+      summary: Табло для организатора — доступно и во время игры
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Табло
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scoreboard"
   /api/admin/events/{slug}/attempts:
     get:
       summary: Журнал попыток ввода кодов (анти-чит)
@@ -517,11 +554,14 @@ components:
           type: integer
           minimum: 0
           maximum: 9007199254740991
+        resultsPublished:
+          type: boolean
       required:
         - event
         - serverTime
         - remainingMs
         - elapsedMs
+        - resultsPublished
       additionalProperties: false
     Team:
       type: object
@@ -882,10 +922,12 @@ components:
             - game_not_running
             - rate_limited
         pointsAwarded:
+          nullable: true
           type: integer
           minimum: -9007199254740991
           maximum: 9007199254740991
         totalPoints:
+          nullable: true
           type: integer
           minimum: -9007199254740991
           maximum: 9007199254740991
@@ -953,6 +995,8 @@ components:
           type: integer
           minimum: 0
           maximum: 9007199254740991
+        published:
+          type: boolean
         rows:
           type: array
           items:
@@ -996,6 +1040,91 @@ components:
             additionalProperties: false
       required:
         - serverTime
+        - published
+        - rows
+      additionalProperties: false
+    EventArchive:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventName:
+          type: string
+        eventSlug:
+          type: string
+        reason:
+          type: string
+          enum:
+            - finished
+            - reset
+        finishedAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        durationMs:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        teamCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              teamId:
+                type: string
+                minLength: 1
+                maxLength: 64
+              teamName:
+                type: string
+              solvedCount:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              taskPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              qualityPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              totalPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              lastSolvedAt:
+                nullable: true
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - teamId
+              - teamName
+              - solvedCount
+              - taskPoints
+              - qualityPoints
+              - totalPoints
+              - lastSolvedAt
+            additionalProperties: false
+      required:
+        - id
+        - eventId
+        - eventName
+        - eventSlug
+        - reason
+        - finishedAt
+        - durationMs
+        - teamCount
         - rows
       additionalProperties: false
     GameCommand:
@@ -1014,6 +1143,8 @@ components:
           minimum: 0
           exclusiveMinimum: true
           maximum: 9007199254740991
+        confirmation:
+          type: string
       required:
         - action
       additionalProperties: false

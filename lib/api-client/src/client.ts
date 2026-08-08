@@ -1,5 +1,6 @@
 import type {
   ClaimQualityRequest,
+  EventArchive,
   GameState,
   Player,
   QualityCode,
@@ -23,14 +24,18 @@ export interface TokenStorage {
   clear(): Promise<void>;
 }
 
-export interface PlayerTask extends Task {
+export interface PlayerTask extends Omit<Task, 'points'> {
+  /** null у сданного задания, пока итоги не опубликованы. */
+  points: number | null;
   solved: boolean;
   qualityClaimed: boolean;
 }
 
 export interface TasksResponse {
   tasks: PlayerTask[];
-  totalPoints: number;
+  /** null, пока итоги не подведены. */
+  totalPoints: number | null;
+  resultsPublished: boolean;
   serverTime: number;
 }
 
@@ -127,8 +132,10 @@ export class QuestClient {
   /* --------------------------------------------------------------- админ */
 
   admin = {
-    command: (action: string, durationMs?: number): Promise<GameState> =>
-      this.#request('POST', `/api/admin/events/${this.eventSlug}/command`, { action, durationMs }),
+    command: (action: string, extra: { durationMs?: number; confirmation?: string } = {}): Promise<GameState> =>
+      this.#request('POST', `/api/admin/events/${this.eventSlug}/command`, { action, ...extra }),
+    scoreboard: (): Promise<Scoreboard> => this.#request('GET', `/api/admin/events/${this.eventSlug}/scoreboard`),
+    archives: (): Promise<EventArchive[]> => this.#request('GET', '/api/admin/archives'),
     tasks: <T>(): Promise<T> => this.#request('GET', `/api/admin/events/${this.eventSlug}/tasks`),
     createTask: <T>(body: unknown): Promise<T> =>
       this.#request('POST', `/api/admin/events/${this.eventSlug}/tasks`, body),

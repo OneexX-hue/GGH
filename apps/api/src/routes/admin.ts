@@ -5,7 +5,7 @@ import { rowToAdminTask, rowToPlayer, rowToQualityCode } from '@workspace/db';
 import { requireAdmin } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 import { notFound } from '../errors.ts';
-import { applyCommand, findEventBySlug, toGameState } from '../services/events.ts';
+import { applyCommand, findEventBySlug, listArchives, toGameState } from '../services/events.ts';
 import { buildScoreboard } from '../services/scoring.ts';
 
 type Row = Record<string, unknown>;
@@ -124,8 +124,14 @@ export function adminRouter(ctx: AppContext): Router {
     res.json(rows.map((row) => ({ ...rowToPlayer(row), teamName: String(row['team_name']) })));
   });
 
+  /** Организатор видит табло всегда, включая идущую игру. */
   router.get('/events/:slug/scoreboard', (req, res) => {
-    res.json(buildScoreboard(ctx, findEventBySlug(ctx, req.params.slug).id));
+    res.json(buildScoreboard(ctx, findEventBySlug(ctx, req.params.slug).id, true));
+  });
+
+  /** Архив прошедших игр: снимки итогов, переживающие сброс. */
+  router.get('/archives', (_req, res) => {
+    res.json(listArchives(ctx));
   });
 
   router.get('/events/:slug/quality-codes', (req, res) => {
@@ -167,7 +173,7 @@ export function adminRouter(ctx: AppContext): Router {
   /** Выгрузка итогов в CSV — организаторы печатают её на награждении. */
   router.get('/events/:slug/export.csv', (req, res) => {
     const event = findEventBySlug(ctx, req.params.slug);
-    const { rows } = buildScoreboard(ctx, event.id);
+    const { rows } = buildScoreboard(ctx, event.id, true);
     const header = 'place,team,solved,task_points,quality_points,total';
     const body = rows.map((row, index) =>
       [index + 1, csvCell(row.teamName), row.solvedCount, row.taskPoints, row.qualityPoints, row.totalPoints].join(','),

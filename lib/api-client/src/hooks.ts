@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import type { ClaimQualityRequest, GameState, Scoreboard, SubmitCodeRequest, SubmitCodeResponse } from '@workspace/core';
+import type {
+  ClaimQualityRequest,
+  GameState,
+  Player,
+  Scoreboard,
+  SubmitCodeRequest,
+  SubmitCodeResponse,
+  Team,
+} from '@workspace/core';
 import { clockSkew, computeClock, estimateServerNow } from '@workspace/core';
 import { ApiError, type TasksResponse } from './client.ts';
 import { useQuest } from './provider.tsx';
@@ -20,6 +28,12 @@ export const queryKeys = {
 export function useGameState(): UseQueryResult<GameState> {
   const { client } = useQuest();
   return useQuery({ queryKey: queryKeys.gameState, queryFn: () => client.gameState(), refetchInterval: 30_000 });
+}
+
+export function useMe(): UseQueryResult<{ player: Player; team: Team }> {
+  const { client } = useQuest();
+  // Игрок и команда не меняются по ходу игры — перезапрашивать их незачем.
+  return useQuery({ queryKey: queryKeys.me, queryFn: () => client.me(), staleTime: Infinity });
 }
 
 export function useTasks(enabled = true): UseQueryResult<TasksResponse> {

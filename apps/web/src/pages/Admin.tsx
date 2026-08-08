@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AdminTask, Player, QualityCode } from '@workspace/core';
 import { formatDuration } from '@workspace/core';
-import { useGameClock, useGameState, useScoreboard } from '@workspace/api-client';
+import { useGameClock, useGameState } from '@workspace/api-client';
 import { ADMIN_TOKEN_KEY, client } from '../lib/quest.ts';
 
 interface AdminTaskRow extends AdminTask {
@@ -24,11 +24,27 @@ interface Attempt {
 export function Admin() {
   const [token, setToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY) ?? '');
   const [authorized, setAuthorized] = useState(false);
+  const [checking, setChecking] = useState(() => token !== '');
 
   useEffect(() => {
     client.setAdminToken(token || undefined);
   }, [token]);
 
+  // Сохранённый токен проверяется молча: организатор во время игры перезагружает
+  // вкладку и не должен каждый раз проходить вход заново.
+  useEffect(() => {
+    if (token === '') return;
+    client.setAdminToken(token);
+    client.admin
+      .qualityCodes()
+      .then(() => setAuthorized(true))
+      .catch(() => localStorage.removeItem(ADMIN_TOKEN_KEY))
+      .finally(() => setChecking(false));
+    // Намеренно только при монтировании: дальше вход идёт через AdminLogin.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (checking) return <main className="p-6 text-slate-500">Проверяю доступ…</main>;
   if (!authorized) {
     return <AdminLogin token={token} setToken={setToken} onSuccess={() => setAuthorized(true)} />;
   }
@@ -80,6 +96,7 @@ function AdminPanel() {
   const { data: state } = useGameState();
   const clock = useGameClock(state);
   const queryClient = useQueryClient();
+  const [resetOpen, setResetOpen] = useState(false);
 
   const command = useMutation({
     mutationFn: (action: string) => client.admin.command(action),
@@ -94,7 +111,11 @@ function AdminPanel() {
         <div>
           <h1 className="text-2xl font-bold">{state?.event.name ?? 'Квест'}</h1>
           <p className="text-sm text-slate-400">
-            {statusLabel(status)} · осталось {formatDuration(clock.remainingMs)}
+            {statusLabel(status)}
+            {/* У завершённой игры «осталось» бессмысленно — показываем, сколько она шла. */}
+            {status === 'finished'
+              ? ` · игра шла ${formatDuration(clock.elapsedMs)}`
+              : ` · осталось ${formatDuration(clock.remainingMs)}`}
           </p>
         </div>
         <a href={client.admin.exportCsvUrl()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold">
@@ -106,27 +127,94 @@ function AdminPanel() {
         <Action label="Старт" onClick={() => command.mutate('start')} disabled={status === 'running'} />
         <Action label="Пауза" onClick={() => command.mutate('pause')} disabled={status !== 'running'} />
         <Action label="Продолжить" onClick={() => command.mutate('resume')} disabled={status !== 'paused'} />
-        <Action label="Стоп" onClick={() => command.mutate('stop')} disabled={status === 'draft'} />
         <Action
-          label="Сброс"
-          danger
-          onClick={() => {
-            if (confirm('Сброс удалит все результаты команд. Продолжить?')) command.mutate('reset');
-          }}
+          label="Стоп"
+          onClick={() => command.mutate('stop')}
+          disabled={status === 'draft' || status === 'finished'}
         />
+        <Action label="Сброс" danger onClick={() => setResetOpen(true)} />
       </section>
+
+      {status !== 'finished' && (
+        <p className="rounded-xl bg-slate-900 px-4 py-3 text-sm text-slate-400">
+          Игроки не видят ни своих баллов, ни мест — итоги откроются им автоматически, когда выйдет время
+          или вы нажмёте «Стоп».
+        </p>
+      )}
+
+      {resetOpen && (
+        <ResetDialog eventName={state?.event.name ?? ''} onClose={() => setResetOpen(false)} />
+      )}
 
       <Scoreboard />
       <TasksEditor />
       <QualityCodesPanel />
       <PlayersTable />
       <AttemptsLog />
+      <Archives />
     </main>
   );
 }
 
+/**
+ * Сброс стирает результаты всех команд. Кнопки с confirm() для этого мало:
+ * требуем набрать название события, а снимок итогов уходит в архив до удаления.
+ */
+function ResetDialog({ eventName, onClose }: { eventName: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [typed, setTyped] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = useMutation({
+    mutationFn: () => client.admin.command('reset', { confirmation: typed }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries();
+      onClose();
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  return (
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-md space-y-3 rounded-2xl bg-slate-900 p-5">
+        <h3 className="text-lg font-bold text-red-300">Сброс игры</h3>
+        <p className="text-sm text-slate-300">
+          Будут удалены все сданные задания, оценки качества и журнал попыток. Задания и команды останутся.
+          Снимок текущих итогов сохранится в архиве.
+        </p>
+        <p className="text-sm text-slate-400">
+          Чтобы подтвердить, введите название события: <b className="text-slate-200">{eventName}</b>
+        </p>
+        <input
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-red-400"
+        />
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => reset.mutate()}
+            disabled={typed !== eventName || reset.isPending}
+            className="flex-1 rounded-lg bg-red-800 py-2.5 font-bold text-red-100 disabled:opacity-30"
+          >
+            Сбросить
+          </button>
+          <button onClick={onClose} className="rounded-lg bg-slate-800 px-5 py-2.5 font-semibold">
+            Отмена
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Scoreboard() {
-  const { data } = useScoreboard();
+  // Организатору нужен свой маршрут: публичное табло молчит, пока идёт игра.
+  const { data } = useQuery({
+    queryKey: ['admin-scoreboard'],
+    queryFn: () => client.admin.scoreboard(),
+    refetchInterval: 15_000,
+  });
   if (!data) return null;
 
   return (
@@ -339,6 +427,55 @@ function AttemptsLog() {
           <li key={attempt.id} className={attempt.ok ? 'text-emerald-400' : 'text-slate-500'}>
             {new Date(attempt.createdAt).toLocaleTimeString('ru')} · {attempt.teamName} · {attempt.value}
             {attempt.reason && ` · ${attempt.reason}`}
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+/**
+ * Архив прошедших игр. Снимок пишется при завершении и перед сбросом, поэтому
+ * итоги квеста нельзя потерять, даже нажав «Сброс» на завершённой игре.
+ */
+function Archives() {
+  const { data } = useQuery({ queryKey: ['admin-archives'], queryFn: () => client.admin.archives() });
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  return (
+    <Panel title={`Архив игр (${data?.length ?? 0})`}>
+      {(data?.length ?? 0) === 0 && (
+        <p className="text-sm text-slate-500">Пока пусто. Снимок появится после первой завершённой игры.</p>
+      )}
+      <ul className="space-y-1">
+        {data?.map((archive) => (
+          <li key={archive.id} className="border-t border-slate-800 py-2">
+            <button
+              onClick={() => setOpenId(openId === archive.id ? null : archive.id)}
+              className="flex w-full items-center gap-3 text-left text-sm"
+            >
+              <span className="flex-1 font-medium">{archive.eventName}</span>
+              <span className="text-slate-500">
+                {new Date(archive.finishedAt).toLocaleString('ru')}
+              </span>
+              <span className="text-slate-400">{archive.teamCount} команд</span>
+              <span className={archive.reason === 'reset' ? 'text-amber-500' : 'text-emerald-500'}>
+                {archive.reason === 'reset' ? 'перед сбросом' : 'финал'}
+              </span>
+            </button>
+
+            {openId === archive.id && (
+              <ol className="mt-2 space-y-0.5 pl-2 text-sm">
+                {archive.rows.map((row, index) => (
+                  <li key={row.teamId} className="flex gap-3">
+                    <span className="w-5 text-slate-600">{index + 1}</span>
+                    <span className="flex-1">{row.teamName}</span>
+                    <span className="text-slate-500">{row.solvedCount} зад.</span>
+                    <span className="w-12 text-right font-bold text-cyan-400">{row.totalPoints}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </li>
         ))}
       </ul>

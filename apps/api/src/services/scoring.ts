@@ -8,7 +8,7 @@ type Row = Record<string, unknown>;
  * Счётчик рано или поздно разъезжается с фактами (отмена зачёта, reset),
  * а сумма по журналу отправок всегда верна по определению.
  */
-export function buildScoreboard(ctx: AppContext, eventId: string): Scoreboard {
+export function computeRows(ctx: AppContext, eventId: string): ScoreRow[] {
   const rows = ctx.db
     .prepare(
       `SELECT
@@ -55,7 +55,22 @@ export function buildScoreboard(ctx: AppContext, eventId: string): Scoreboard {
   // При равенстве очков выше та команда, что закрыла последнее задание раньше.
   scored.sort((a, b) => b.totalPoints - a.totalPoints || (a.lastSolvedAt ?? Infinity) - (b.lastSolvedAt ?? Infinity));
 
-  return { serverTime: Date.now(), rows: scored };
+  return scored;
+}
+
+/**
+ * Табло для выдачи наружу.
+ *
+ * Пока `published` не выставлен, строки не отдаются вовсе — не «занулены»,
+ * а отсутствуют. Занулённое табло всё равно выдаёт состав команд и их число,
+ * а пустое не выдаёт ничего.
+ */
+export function buildScoreboard(ctx: AppContext, eventId: string, published: boolean): Scoreboard {
+  return {
+    serverTime: Date.now(),
+    published,
+    rows: published ? computeRows(ctx, eventId) : [],
+  };
 }
 
 export function teamTotal(ctx: AppContext, teamId: string): number {

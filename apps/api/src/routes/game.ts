@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rowToQualityCode, rowToTask } from '@workspace/db';
 import { requirePlayer } from '../auth.ts';
 import type { AppContext } from '../context.ts';
-import { findEventById, findEventBySlug, toGameState } from '../services/events.ts';
+import { findEventById, findEventBySlug, resultsPublished, toGameState } from '../services/events.ts';
 import { buildScoreboard, solvedTaskIds, teamTotal } from '../services/scoring.ts';
 import { claimQuality, submitCode } from '../services/submissions.ts';
 import { ClaimQualityRequest, SubmitCodeRequest } from '@workspace/core';
@@ -21,7 +21,8 @@ export function gameRouter(ctx: AppContext): Router {
 
   router.get('/events/:slug/scoreboard', (req, res) => {
     const event = findEventBySlug(ctx, req.params.slug);
-    res.json(buildScoreboard(ctx, event.id));
+    // Табло открыто всем, но только после подведения итогов.
+    res.json(buildScoreboard(ctx, event.id, resultsPublished(event)));
   });
 
   /**
@@ -41,6 +42,8 @@ export function gameRouter(ctx: AppContext): Router {
   /** Список заданий для игрока: без кодов, но с отметкой «уже сдано». */
   router.get('/tasks', auth, (req, res) => {
     const player = req.player!;
+    const event = findEventById(ctx, player.eventId);
+    const published = resultsPublished(event);
     const solved = new Set(solvedTaskIds(ctx, player.teamId));
     const claimed = new Set(
       (ctx.db.prepare('SELECT task_id FROM quality_claims WHERE team_id = ?').all(player.teamId) as Row[]).map((r) =>
@@ -52,10 +55,26 @@ export function gameRouter(ctx: AppContext): Router {
       ctx.db.prepare('SELECT * FROM tasks WHERE event_id = ? ORDER BY order_index').all(player.eventId) as Row[]
     ).map((row) => {
       const task = rowToTask(row);
-      return { ...task, solved: solved.has(task.id), qualityClaimed: claimed.has(task.id) };
+      const isSolved = solved.has(task.id);
+      return {
+        ...task,
+        // Номинал сданного задания — это заработанные баллы: сложив их, игрок
+        // восстановил бы скрытую сумму. У несданных номинал остаётся, он нужен
+        // для выбора маршрута и ничего о счёте команды не говорит.
+        points: isSolved && !published ? null : task.points,
+        solved: isSolved,
+        qualityClaimed: claimed.has(task.id),
+      };
     });
 
-    res.json({ tasks, totalPoints: teamTotal(ctx, player.teamId), serverTime: Date.now() });
+    // Сумма баллов команды скрыта до подведения итогов; отметка «сдано»
+    // остаётся — без неё игрок не поймёт, что ему ещё осталось пройти.
+    res.json({
+      tasks,
+      totalPoints: published ? teamTotal(ctx, player.teamId) : null,
+      resultsPublished: published,
+      serverTime: Date.now(),
+    });
   });
 
   router.get('/quality-codes', auth, (req, res) => {

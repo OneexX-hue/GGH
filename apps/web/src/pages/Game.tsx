@@ -6,8 +6,10 @@ import {
   useClaimQuality,
   useGameClock,
   useGameState,
+  useMe,
   useQualityCodes,
   useQueueFlush,
+  useScoreboard,
   useSubmitCode,
   useTasks,
   type PlayerTask,
@@ -28,6 +30,10 @@ export function Game() {
 
   const tasks = tasksData?.tasks ?? [];
   const solvedCount = tasks.filter((t) => t.solved).length;
+  const published = state?.resultsPublished ?? false;
+
+  // Игра кончилась — показываем итоги вместо списка заданий.
+  if (published) return <Results solvedCount={solvedCount} totalTasks={tasks.length} />;
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 p-4 pb-24">
@@ -37,7 +43,8 @@ export function Game() {
         <span className="text-sm text-slate-400">
           Задания {solvedCount} / {tasks.length}
         </span>
-        <span className="text-xl font-black text-cyan-400">{tasksData?.totalPoints ?? 0} очков</span>
+        {/* Счёт скрыт до подведения итогов — намеренно, а не «ещё не загрузился». */}
+        <span className="text-sm text-slate-500">Итоги — после игры</span>
       </div>
 
       {pendingOffline > 0 && (
@@ -60,6 +67,66 @@ export function Game() {
           />
         ))}
       </ul>
+    </main>
+  );
+}
+
+/* --------------------------------------------------------------- итоги */
+
+/**
+ * Финальное табло. Появляется, когда организатор остановил игру или вышло время.
+ * До этого момента игрок не видел ни своего счёта, ни чужого.
+ */
+function Results({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
+  const { data: board } = useScoreboard();
+  const { data: me } = useMe();
+
+  const rows = board?.rows ?? [];
+  const myIndex = rows.findIndex((row) => row.teamId === me?.team.id);
+  const myRow = myIndex >= 0 ? rows[myIndex] : undefined;
+
+  return (
+    <main className="mx-auto w-full max-w-md space-y-5 p-4 pb-24">
+      <header className="space-y-1 pt-4 text-center">
+        <p className="text-sm uppercase tracking-widest text-slate-500">Игра завершена</p>
+        <h1 className="text-3xl font-black">Итоги</h1>
+      </header>
+
+      {myRow && (
+        <section className="space-y-1 rounded-2xl bg-gradient-to-b from-cyan-950 to-slate-900 p-5 text-center">
+          <p className="text-6xl font-black text-cyan-400">{myIndex + 1}</p>
+          <p className="text-lg font-bold">{myRow.teamName}</p>
+          <p className="text-slate-400">
+            {myRow.totalPoints} очков · {solvedCount} из {totalTasks} заданий
+          </p>
+          {myRow.qualityPoints > 0 && (
+            <p className="text-sm text-slate-500">из них {myRow.qualityPoints} за качество</p>
+          )}
+        </section>
+      )}
+
+      <section className="rounded-2xl bg-slate-900 p-4">
+        <h2 className="mb-3 font-bold">Все команды</h2>
+        <ul className="space-y-1">
+          {rows.map((row, index) => {
+            const mine = row.teamId === me?.team.id;
+            return (
+              <li
+                key={row.teamId}
+                className={`flex items-center gap-3 rounded-lg px-2 py-2 text-sm ${mine ? 'bg-cyan-950' : ''}`}
+              >
+                <span className={`w-6 text-center font-bold ${index < 3 ? 'text-amber-400' : 'text-slate-600'}`}>
+                  {index + 1}
+                </span>
+                <span className={`flex-1 ${mine ? 'font-bold' : ''}`}>{row.teamName}</span>
+                <span className="text-slate-500">{row.solvedCount}</span>
+                <span className="w-12 text-right font-bold text-cyan-400">{row.totalPoints}</span>
+              </li>
+            );
+          })}
+        </ul>
+        {rows.length === 0 && <p className="text-slate-500">Результатов нет.</p>}
+      </section>
     </main>
   );
 }
@@ -104,7 +171,7 @@ function TaskCard({ task, open, canSubmit, onToggle }: TaskCardProps) {
         </span>
         <span className="flex-1 font-semibold">{task.title}</span>
         {task.lat !== null && <span title="Требуется быть на точке">📍</span>}
-        <span className="text-sm text-slate-500">{task.points}</span>
+        <span className="text-sm text-slate-500">{task.points ?? '—'}</span>
       </button>
 
       {open && (
@@ -225,7 +292,10 @@ function QualityForm({ taskId }: { taskId: string }) {
 /* ------------------------------------------------------------ помощники */
 
 function describe(result: SubmitCodeResponse): string {
-  if (result.status === 'accepted') return `Принято, +${result.pointsAwarded}`;
+  // Пока итоги закрыты, сервер не присылает баллы — показываем только факт зачёта.
+  if (result.status === 'accepted') {
+    return result.pointsAwarded === null ? 'Принято' : `Принято, +${result.pointsAwarded}`;
+  }
   switch (result.reason) {
     case 'wrong_code':
       return 'Код не подходит';

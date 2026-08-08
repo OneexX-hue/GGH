@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import {
   ApiError,
   ClaimQualityRequest,
+  EventArchive,
   GameCommand,
   GameState,
   Player,
@@ -45,6 +46,7 @@ const schemas = {
   ClaimQualityRequest,
   QualityCode,
   Scoreboard,
+  EventArchive,
   GameCommand,
   ApiError,
 };
@@ -284,6 +286,31 @@ const spec = {
         security: [{ adminToken: [] }],
         parameters: [slugParam],
         responses: { '200': { description: 'Игроки' } },
+      },
+    },
+
+    '/api/admin/archives': {
+      get: {
+        summary: 'Архив итогов прошедших игр',
+        description:
+          'Снимок табло пишется при завершении игры и перед сбросом. Сброс удаляет отправки ' +
+          'безвозвратно, поэтому архив — единственное, что сохраняет итоги проведённого квеста.',
+        security: [{ adminToken: [] }],
+        responses: {
+          '200': {
+            description: 'Снимки, свежие сверху',
+            content: { 'application/json': { schema: { type: 'array', items: ref('EventArchive') } } },
+          },
+        },
+      },
+    },
+
+    '/api/admin/events/{slug}/scoreboard': {
+      get: {
+        summary: 'Табло для организатора — доступно и во время игры',
+        security: [{ adminToken: [] }],
+        parameters: [slugParam],
+        responses: { '200': { description: 'Табло', content: json('Scoreboard') } },
       },
     },
 

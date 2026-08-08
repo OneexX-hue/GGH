@@ -40,6 +40,12 @@ export const GameState = z.object({
   serverTime: Timestamp,
   remainingMs: z.number().int().nonnegative(),
   elapsedMs: z.number().int().nonnegative(),
+  /**
+   * Опубликованы ли итоги. Пока false, игрок не видит ни своих баллов, ни места:
+   * счёт по ходу игры превращает квест в гонку за табло и подсказывает командам,
+   * когда можно перестать стараться. Становится true при завершении игры.
+   */
+  resultsPublished: z.boolean(),
 });
 export type GameState = z.infer<typeof GameState>;
 
@@ -165,8 +171,9 @@ export const SubmitCodeResponse = z.object({
   status: SubmissionStatus,
   /** Причина отказа, если status === 'rejected'. */
   reason: z.enum(['wrong_code', 'already_solved', 'too_far', 'game_not_running', 'rate_limited']).nullable(),
-  pointsAwarded: z.number().int(),
-  totalPoints: z.number().int(),
+  /** null, пока итоги не опубликованы: игрок видит «принято», но не сумму. */
+  pointsAwarded: z.number().int().nullable(),
+  totalPoints: z.number().int().nullable(),
   /** Расстояние до точки в метрах, когда отказ по гео. */
   distanceM: z.number().nonnegative().nullable(),
 });
@@ -206,9 +213,25 @@ export type ScoreRow = z.infer<typeof ScoreRow>;
 
 export const Scoreboard = z.object({
   serverTime: Timestamp,
+  /** false — итоги ещё не подведены, `rows` намеренно пуст. */
+  published: z.boolean(),
   rows: z.array(ScoreRow),
 });
 export type Scoreboard = z.infer<typeof Scoreboard>;
+
+/** Снимок итогов прошедшей игры. Пишется при завершении и перед сбросом. */
+export const EventArchive = z.object({
+  id: Id,
+  eventId: Id,
+  eventName: z.string(),
+  eventSlug: z.string(),
+  reason: z.enum(['finished', 'reset']),
+  finishedAt: Timestamp,
+  durationMs: z.number().int().nonnegative(),
+  teamCount: z.number().int().nonnegative(),
+  rows: z.array(ScoreRow),
+});
+export type EventArchive = z.infer<typeof EventArchive>;
 
 /* ----------------------------------------------------------------- admin */
 
@@ -216,6 +239,11 @@ export const GameCommand = z.object({
   action: z.enum(['start', 'pause', 'resume', 'stop', 'reset']),
   /** Длительность игры, применяется только при action === 'start'. */
   durationMs: z.number().int().positive().optional(),
+  /**
+   * Точное название события. Обязательно для action === 'reset': сброс стирает
+   * результаты всех команд, и одного нажатия для этого мало.
+   */
+  confirmation: z.string().optional(),
 });
 export type GameCommand = z.infer<typeof GameCommand>;
 

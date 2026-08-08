@@ -58,6 +58,27 @@ test('ответы принимаются только в идущей игре 
   assert.equal(acceptsSubmissions(base, 5000), false, 'игра не запускалась');
 });
 
+test('часы замирают на финале, а не продолжают идти', () => {
+  // Игру остановили через полчаса после старта.
+  const finished = { ...base, status: 'finished' as const, startedAt: 1000, pausedAt: 1000 + HOUR / 2 };
+
+  const rightAfter = computeClock(finished, 1000 + HOUR / 2 + 1000);
+  const dayLater = computeClock(finished, 1000 + 24 * HOUR);
+
+  assert.equal(rightAfter.elapsedMs, HOUR / 2);
+  assert.equal(dayLater.elapsedMs, HOUR / 2, 'через сутки игра всё ещё шла полчаса');
+  assert.equal(dayLater.remainingMs, 1.5 * HOUR, 'остаток на момент остановки не меняется');
+  assert.equal(dayLater.isOver, true);
+  assert.equal(dayLater.isRunning, false);
+});
+
+test('игра, завершённая по истечении времени, показывает нулевой остаток', () => {
+  const expired = { ...base, status: 'finished' as const, startedAt: 1000, pausedAt: 1000 + 2 * HOUR };
+  const clock = computeClock(expired, 1000 + 5 * HOUR);
+  assert.equal(clock.remainingMs, 0);
+  assert.equal(clock.elapsedMs, 2 * HOUR);
+});
+
 test('formatDuration', () => {
   assert.equal(formatDuration(0), '00:00');
   assert.equal(formatDuration(65_000), '01:05');
