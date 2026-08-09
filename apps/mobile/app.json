@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.questplatform",
+      "bundleIdentifier": "com.questplatform.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Местоположение нужно, чтобы засчитать задание, когда вы дошли до точки.",
         "NSCameraUsageDescription": "Камера нужна, чтобы сканировать QR-коды заданий."
       }
     },
     "android": {
-      "package": "com.example.questplatform",
+      "package": "com.questplatform.app",
       "adaptiveIcon": { "backgroundColor": "#0f172a" },
       "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"],
       "edgeToEdgeEnabled": true
