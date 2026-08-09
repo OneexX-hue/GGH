@@ -25,7 +25,7 @@ export interface TokenStorage {
 }
 
 export interface PlayerTask extends Omit<Task, 'points'> {
-  /** null у сданного задания, пока итоги не опубликованы. */
+  /** null у сданного задания: номинал сданного — это заработанные баллы. */
   points: number | null;
   solved: boolean;
   qualityClaimed: boolean;
@@ -33,9 +33,6 @@ export interface PlayerTask extends Omit<Task, 'points'> {
 
 export interface TasksResponse {
   tasks: PlayerTask[];
-  /** null, пока итоги не подведены. */
-  totalPoints: number | null;
-  resultsPublished: boolean;
   serverTime: number;
 }
 
@@ -86,9 +83,7 @@ export class QuestClient {
     return this.#request('GET', `/api/events/${this.eventSlug}/state`);
   }
 
-  scoreboard(): Promise<Scoreboard> {
-    return this.#request('GET', `/api/events/${this.eventSlug}/scoreboard`);
-  }
+  // Метода scoreboard() для игрока нет: табло существует только в админке.
 
   streamUrl(): string {
     return `${this.baseUrl}/api/events/${this.eventSlug}/stream`;

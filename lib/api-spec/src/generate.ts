@@ -160,20 +160,11 @@ const spec = {
       },
     },
 
-    '/api/events/{slug}/scoreboard': {
-      get: {
-        summary: 'Табло результатов',
-        security: [],
-        parameters: [slugParam],
-        responses: { '200': { description: 'Табло', content: json('Scoreboard') } },
-      },
-    },
-
     '/api/events/{slug}/stream': {
       get: {
         summary: 'Поток изменений (Server-Sent Events)',
         description:
-          'text/event-stream. Сообщения вида {"type":"game-state"|"tasks-changed"|"scoreboard"} — сигнал ' +
+          'text/event-stream. Сообщения вида {"type":"game-state"|"tasks-changed"} — сигнал ' +
           'перезапросить соответствующие данные. Клиенты без SSE опрашивают API раз в 30 секунд.',
         security: [],
         parameters: [slugParam],
@@ -184,17 +175,19 @@ const spec = {
     '/api/tasks': {
       get: {
         summary: 'Задания глазами игрока',
-        description: 'Поле code намеренно отсутствует: ответ не должен попадать на устройство до сдачи.',
+        description:
+          'Поля code нет намеренно: ответ не должен попадать на устройство до сдачи. Баллов тоже нет — ' +
+          'ни суммы команды, ни номинала УЖЕ СДАННОГО задания (сложив номиналы сданных, игрок ' +
+          'восстановил бы свой счёт). У несданных заданий номинал остаётся: он нужен для выбора маршрута.',
         responses: {
           '200': {
-            description: 'Задания и текущая сумма баллов команды',
+            description: 'Задания с отметкой «сдано»',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   properties: {
                     tasks: { type: 'array', items: ref('Task') },
-                    totalPoints: { type: 'integer' },
                     serverTime: { type: 'integer' },
                   },
                 },
@@ -217,7 +210,8 @@ const spec = {
         summary: 'Отправка кода задания',
         description:
           'Идемпотентно по idempotencyKey: повторная доставка из офлайн-очереди возвращает ' +
-          'исходный результат и не начисляет баллы второй раз.',
+          'исходный результат и не начисляет баллы второй раз. Начисленных баллов в ответе нет — ' +
+          'счёт доступен только организатору.',
         requestBody: { required: true, content: json('SubmitCodeRequest') },
         responses: {
           '200': { description: 'Результат проверки', content: json('SubmitCodeResponse') },

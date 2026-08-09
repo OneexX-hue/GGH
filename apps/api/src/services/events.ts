@@ -24,26 +24,9 @@ export function findEventById(ctx: AppContext, id: string): QuestEvent {
   return syncExpired(ctx, readEvent(ctx, 'id', id));
 }
 
-/**
- * Итоги видны игрокам только после завершения игры.
- *
- * Пока квест идёт, счёт и места скрыты: иначе команда, увидевшая недосягаемый
- * отрыв лидера, перестаёт стараться, а лидер — рисковать. Организатор видит
- * табло всегда.
- */
-export function resultsPublished(event: QuestEvent): boolean {
-  return event.status === 'finished';
-}
-
 export function toGameState(event: QuestEvent, now = Date.now()): GameState {
   const clock = computeClock(event, now);
-  return {
-    event,
-    serverTime: now,
-    remainingMs: clock.remainingMs,
-    elapsedMs: clock.elapsedMs,
-    resultsPublished: resultsPublished(event),
-  };
+  return { event, serverTime: now, remainingMs: clock.remainingMs, elapsedMs: clock.elapsedMs };
 }
 
 /**

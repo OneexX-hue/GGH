@@ -9,10 +9,8 @@ import {
   useGameClock,
   useGameState,
   useLiveUpdates,
-  useMe,
   useQualityCodes,
   useQueueFlush,
-  useScoreboard,
   useSubmitCode,
   useTasks,
   type PlayerTask,
@@ -32,10 +30,10 @@ export default function Game() {
 
   const tasks = tasksData?.tasks ?? [];
   const solved = tasks.filter((t) => t.solved).length;
-  const published = state?.resultsPublished ?? false;
-
-  // Игра кончилась — вместо списка заданий показываем итоги.
-  if (published) return <Results solvedCount={solved} totalTasks={tasks.length} />;
+  // Игра кончилась — вместо списка заданий показываем финальный экран.
+  if (state?.event.status === 'finished') {
+    return <Finished solvedCount={solved} totalTasks={tasks.length} />;
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.bg }} contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -54,8 +52,8 @@ export default function Game() {
         <Text style={{ color: theme.textDim }}>
           Задания {solved} / {tasks.length}
         </Text>
-        {/* Счёт скрыт до подведения итогов — намеренно, а не «не загрузилось». */}
-        <Text style={{ color: theme.textFaint }}>Итоги — после игры</Text>
+        {/* Счёта здесь нет намеренно: баллы и места объявляет организатор. */}
+        <Text style={{ color: theme.textFaint }}>Баллы объявит организатор</Text>
       </View>
 
       {pendingOffline > 0 && (
@@ -82,68 +80,28 @@ export default function Game() {
 }
 
 /**
- * Финальное табло. Появляется, когда вышло время или организатор нажал «Стоп».
- * До этого момента игрок не видел ни своего счёта, ни чужого.
+ * Финальный экран игрока.
+ *
+ * Ни баллов, ни места, ни чужих команд: итоги — сведения для организатора,
+ * он объявляет их сам. Игрок видит только то, что и так знал по ходу игры.
  */
-function Results({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
-  const { data: board } = useScoreboard();
-  const { data: me } = useMe();
-
-  const rows = board?.rows ?? [];
-  const myIndex = rows.findIndex((row) => row.teamId === me?.team.id);
-  const myRow = myIndex >= 0 ? rows[myIndex] : undefined;
-
+function Finished({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.bg }} contentContainerStyle={{ padding: 16, gap: 18 }}>
-      <View style={{ alignItems: 'center', gap: 4, paddingTop: 12 }}>
-        <Text style={{ color: theme.textFaint, letterSpacing: 2, fontSize: 12 }}>ИГРА ЗАВЕРШЕНА</Text>
-        <Text style={{ color: theme.text, fontSize: 30, fontWeight: '900' }}>Итоги</Text>
+    <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', gap: 24, padding: 24 }}>
+      <Text style={{ color: theme.textFaint, letterSpacing: 2, fontSize: 12 }}>ИГРА ЗАВЕРШЕНА</Text>
+
+      <View style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 28, alignItems: 'center', gap: 4, alignSelf: 'stretch' }}>
+        <Text style={{ color: theme.accent, fontSize: 48, fontWeight: '900' }}>
+          {solvedCount}
+          <Text style={{ color: theme.textFaint, fontSize: 24 }}> / {totalTasks}</Text>
+        </Text>
+        <Text style={{ color: theme.textDim }}>заданий закрыто</Text>
       </View>
 
-      {myRow && (
-        <View style={{ alignItems: 'center', backgroundColor: theme.surface, borderRadius: 18, padding: 20, gap: 4 }}>
-          <Text style={{ color: theme.accent, fontSize: 56, fontWeight: '900' }}>{myIndex + 1}</Text>
-          <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800' }}>{myRow.teamName}</Text>
-          <Text style={{ color: theme.textDim }}>
-            {myRow.totalPoints} очков · {solvedCount} из {totalTasks} заданий
-          </Text>
-          {myRow.qualityPoints > 0 && (
-            <Text style={{ color: theme.textFaint, fontSize: 12 }}>из них {myRow.qualityPoints} за качество</Text>
-          )}
-        </View>
-      )}
-
-      <View style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 14, gap: 4 }}>
-        <Text style={{ color: theme.text, fontWeight: '800', marginBottom: 6 }}>Все команды</Text>
-        {rows.map((row, index) => {
-          const mine = row.teamId === me?.team.id;
-          return (
-            <View
-              key={row.teamId}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 10,
-                backgroundColor: mine ? theme.surfaceAlt : 'transparent',
-                borderRadius: 8,
-                paddingHorizontal: 8,
-                paddingVertical: 8,
-              }}
-            >
-              <Text style={{ color: index < 3 ? theme.warning : theme.textFaint, fontWeight: '800', width: 22 }}>
-                {index + 1}
-              </Text>
-              <Text style={{ color: theme.text, flex: 1, fontWeight: mine ? '800' : '400' }}>{row.teamName}</Text>
-              <Text style={{ color: theme.textFaint }}>{row.solvedCount}</Text>
-              <Text style={{ color: theme.accent, fontWeight: '800', width: 44, textAlign: 'right' }}>
-                {row.totalPoints}
-              </Text>
-            </View>
-          );
-        })}
-        {rows.length === 0 && <Text style={{ color: theme.textFaint }}>Результатов нет.</Text>}
-      </View>
-    </ScrollView>
+      <Text style={{ color: theme.textDim, textAlign: 'center' }}>
+        Спасибо за игру! Итоги и места объявит организатор.
+      </Text>
+    </View>
   );
 }
 
@@ -359,10 +317,8 @@ function QualityForm({ taskId }: { taskId: string }) {
 /* ------------------------------------------------------------ помощники */
 
 function describe(result: SubmitCodeResponse): string {
-  // Пока итоги закрыты, сервер не присылает баллы — показываем только факт зачёта.
-  if (result.status === 'accepted') {
-    return result.pointsAwarded === null ? 'Принято' : `Принято, +${result.pointsAwarded}`;
-  }
+  // Баллов в ответе нет — только факт зачёта.
+  if (result.status === 'accepted') return 'Принято';
   switch (result.reason) {
     case 'wrong_code':
       return 'Код не подходит';

@@ -65,7 +65,7 @@ async function submit(token: string, taskId: string, code: string, extra: Record
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ taskId, code, idempotencyKey: randomUUID(), ...extra }),
   });
-  return (await res.json()) as { status: string; reason: string | null; pointsAwarded: number; totalPoints: number };
+  return (await res.json()) as { status: string; reason: string | null; distanceM: number | null };
 }
 
 /* ---------------------------------------------------------------- тесты */
@@ -144,22 +144,20 @@ test('неверный код отклоняется без начисления
 });
 
 test('повтор с тем же ключом идемпотентности начисляет один раз', async () => {
-  const { token } = await register('Женя', 'Куницы');
+  const { token, team } = await register('Женя', 'Куницы');
   const tasks = await adminTasks();
-  const key = randomUUID();
-  const body = JSON.stringify({ taskId: tasks[3]!.id, code: tasks[3]!.code, idempotencyKey: key });
+  const body = JSON.stringify({ taskId: tasks[3]!.id, code: tasks[3]!.code, idempotencyKey: randomUUID() });
   const headers = { Authorization: `Bearer ${token}` };
 
-  const first = (await (await api('/api/submissions/code', { method: 'POST', headers, body })).json()) as {
-    totalPoints: number;
-  };
+  await api('/api/submissions/code', { method: 'POST', headers, body });
+  const afterFirst = await teamPoints(team.id);
+
   const second = (await (await api('/api/submissions/code', { method: 'POST', headers, body })).json()) as {
-    totalPoints: number;
     status: string;
   };
 
   assert.equal(second.status, 'accepted');
-  assert.equal(second.totalPoints, first.totalPoints, 'офлайн-очередь не должна удваивать баллы');
+  assert.equal(await teamPoints(team.id), afterFirst, 'офлайн-очередь не должна удваивать баллы');
 });
 
 test('на паузе коды не принимаются, после снятия — снова принимаются', async () => {
@@ -218,11 +216,11 @@ test('коды качества засчитываются один раз на 
       method: 'POST',
       headers,
       body: JSON.stringify({ code: 'КАЧ10', taskId: tasks[1]!.id, idempotencyKey: randomUUID(), ...extra }),
-    }).then((r) => r.json() as Promise<{ status: string; reason: string | null; pointsAwarded: number | null }>);
+    }).then((r) => r.json() as Promise<{ status: string; reason: string | null }>);
 
   const first = await claim({});
   assert.equal(first.status, 'accepted');
-  assert.equal(first.pointsAwarded, null, 'баллы за качество тоже скрыты до итогов');
+  assert.ok(!('pointsAwarded' in first), 'баллов в ответе игроку быть не должно');
   assert.equal(await teamPoints(team.id), 10);
 
   const second = await claim({});
@@ -240,44 +238,35 @@ test('перебор кодов упирается в лимит попыток'
   assert.ok(reasons.includes('rate_limited'), 'после серии неверных кодов должен включиться лимит');
 });
 
-test('пока игра идёт, публичное табло не отдаёт результатов', async () => {
-  const board = (await (await api('/api/events/city-quest/scoreboard')).json()) as {
-    published: boolean;
-    rows: unknown[];
-  };
-  assert.equal(board.published, false);
-  assert.deepEqual(board.rows, [], 'до подведения итогов строк быть не должно');
+test('публичного табло не существует', async () => {
+  const res = await api('/api/events/city-quest/scoreboard');
+  assert.equal(res.status, 404, 'счёт и места доступны только организатору');
 });
 
 test('организатор видит табло во время игры', async () => {
   const board = (await (await api('/api/admin/events/city-quest/scoreboard', { headers: adminHeaders })).json()) as {
-    published: boolean;
     rows: { totalPoints: number }[];
   };
-  assert.equal(board.published, true);
   assert.ok(board.rows.length > 1);
   for (let i = 1; i < board.rows.length; i++) {
     assert.ok(board.rows[i - 1]!.totalPoints >= board.rows[i]!.totalPoints, 'табло должно быть отсортировано');
   }
 });
 
-test('игрок не видит ни своей суммы, ни номинала сданных заданий', async () => {
+test('в ответах игроку нет никаких баллов', async () => {
   const { token } = await register('Надя', 'Выдры');
   const headers = { Authorization: `Bearer ${token}` };
   const tasks = await adminTasks();
 
   const accepted = await submit(token, tasks[8]!.id, tasks[8]!.code!);
   assert.equal(accepted.status, 'accepted');
-  assert.equal(accepted.pointsAwarded, null, 'начисленные баллы скрыты до итогов');
-  assert.equal(accepted.totalPoints, null, 'сумма команды скрыта до итогов');
+  assert.ok(!('pointsAwarded' in accepted), 'начисленных баллов в ответе быть не должно');
+  assert.ok(!('totalPoints' in accepted), 'суммы команды в ответе быть не должно');
 
   const body = (await (await api('/api/tasks', { headers })).json()) as {
-    totalPoints: number | null;
-    resultsPublished: boolean;
     tasks: { solved: boolean; points: number | null }[];
   };
-  assert.equal(body.totalPoints, null);
-  assert.equal(body.resultsPublished, false);
+  assert.ok(!('totalPoints' in body), 'список заданий не должен нести сумму команды');
 
   const solvedTask = body.tasks.find((t) => t.solved);
   assert.ok(solvedTask, 'задание должно быть отмечено сданным');
@@ -288,28 +277,29 @@ test('игрок не видит ни своей суммы, ни номинал
   );
 });
 
-test('после «Стоп» итоги открываются игрокам', async () => {
+test('после «Стоп» игроку по-прежнему не видно ни счёта, ни табло', async () => {
   const { token } = await register('Олег', 'Совы-2');
   await command('stop');
 
-  const state = (await (await api('/api/events/city-quest/state')).json()) as {
-    resultsPublished: boolean;
-    event: { status: string };
-  };
+  const state = (await (await api('/api/events/city-quest/state')).json()) as { event: { status: string } };
   assert.equal(state.event.status, 'finished');
-  assert.equal(state.resultsPublished, true);
 
-  const board = (await (await api('/api/events/city-quest/scoreboard')).json()) as {
-    published: boolean;
+  assert.equal((await api('/api/events/city-quest/scoreboard')).status, 404, 'публичного табло нет и после игры');
+
+  const body = (await (await api('/api/tasks', { headers: { Authorization: `Bearer ${token}` } })).json()) as {
+    tasks: { solved: boolean; points: number | null }[];
+  };
+  assert.ok(!('totalPoints' in body), 'сумма не появляется и после завершения игры');
+  assert.ok(
+    body.tasks.filter((t) => t.solved).every((t) => t.points === null),
+    'номинал сданных заданий остаётся скрытым и после игры',
+  );
+
+  // Организатор при этом видит всё.
+  const board = (await (await api('/api/admin/events/city-quest/scoreboard', { headers: adminHeaders })).json()) as {
     rows: unknown[];
   };
-  assert.equal(board.published, true);
   assert.ok(board.rows.length > 0);
-
-  const tasks = (await (await api('/api/tasks', { headers: { Authorization: `Bearer ${token}` } })).json()) as {
-    totalPoints: number | null;
-  };
-  assert.equal(typeof tasks.totalPoints, 'number', 'после итогов сумма видна');
 });
 
 test('завершённую игру нельзя остановить или запустить повторно', async () => {
@@ -416,11 +406,9 @@ test('игра завершается сама, когда вышло время
   const expired = (await (await api('/api/events/city-quest/state')).json()) as {
     event: { status: string };
     remainingMs: number;
-    resultsPublished: boolean;
   };
   assert.equal(expired.event.status, 'finished', 'истёкшая игра не должна оставаться в статусе running');
   assert.equal(expired.remainingMs, 0);
-  assert.equal(expired.resultsPublished, true, 'итоги открываются автоматически');
 });
 
 test('после конца времени регистрация закрыта', async () => {

@@ -4,7 +4,6 @@ import type {
   ClaimQualityRequest,
   GameState,
   Player,
-  Scoreboard,
   SubmitCodeRequest,
   SubmitCodeResponse,
   Team,
@@ -16,7 +15,6 @@ import { useQuest } from './provider.tsx';
 export const queryKeys = {
   gameState: ['game-state'] as const,
   tasks: ['tasks'] as const,
-  scoreboard: ['scoreboard'] as const,
   me: ['me'] as const,
   qualityCodes: ['quality-codes'] as const,
 };
@@ -41,10 +39,8 @@ export function useTasks(enabled = true): UseQueryResult<TasksResponse> {
   return useQuery({ queryKey: queryKeys.tasks, queryFn: () => client.tasks(), enabled });
 }
 
-export function useScoreboard(): UseQueryResult<Scoreboard> {
-  const { client } = useQuest();
-  return useQuery({ queryKey: queryKeys.scoreboard, queryFn: () => client.scoreboard(), refetchInterval: 30_000 });
-}
+// Хука табло для игрока нет: счёт и места доступны только организатору
+// (см. QuestClient.admin.scoreboard).
 
 export function useQualityCodes(enabled = true) {
   const { client } = useQuest();
@@ -88,7 +84,6 @@ export function useLiveUpdates(): void {
     return subscribe(() => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.gameState });
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scoreboard });
     });
   }, [subscribe, queryClient]);
 }
@@ -109,7 +104,6 @@ export function useSubmitCode() {
       try {
         const result = await client.submitCode(body);
         void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.scoreboard });
         return result;
       } catch (error) {
         if (error instanceof ApiError && error.isRetryable) {
@@ -130,7 +124,6 @@ export function useClaimQuality() {
     mutationFn: async (body) => {
       const result = await client.claimQuality(body);
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.scoreboard });
       return result;
     },
   });
@@ -155,10 +148,7 @@ export function useQueueFlush(intervalMs = 15_000): number {
       });
       if (cancelled) return;
       setPending(result.remaining);
-      if (result.sent > 0) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.scoreboard });
-      }
+      if (result.sent > 0) void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
     };
 
     void run();

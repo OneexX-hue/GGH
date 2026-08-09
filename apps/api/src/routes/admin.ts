@@ -126,7 +126,7 @@ export function adminRouter(ctx: AppContext): Router {
 
   /** Организатор видит табло всегда, включая идущую игру. */
   router.get('/events/:slug/scoreboard', (req, res) => {
-    res.json(buildScoreboard(ctx, findEventBySlug(ctx, req.params.slug).id, true));
+    res.json(buildScoreboard(ctx, findEventBySlug(ctx, req.params.slug).id));
   });
 
   /** Архив прошедших игр: снимки итогов, переживающие сброс. */
@@ -173,7 +173,7 @@ export function adminRouter(ctx: AppContext): Router {
   /** Выгрузка итогов в CSV — организаторы печатают её на награждении. */
   router.get('/events/:slug/export.csv', (req, res) => {
     const event = findEventBySlug(ctx, req.params.slug);
-    const { rows } = buildScoreboard(ctx, event.id, true);
+    const { rows } = buildScoreboard(ctx, event.id);
     const header = 'place,team,solved,task_points,quality_points,total';
     const body = rows.map((row, index) =>
       [index + 1, csvCell(row.teamName), row.solvedCount, row.taskPoints, row.qualityPoints, row.totalPoints].join(','),

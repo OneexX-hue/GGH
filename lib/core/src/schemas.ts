@@ -40,12 +40,6 @@ export const GameState = z.object({
   serverTime: Timestamp,
   remainingMs: z.number().int().nonnegative(),
   elapsedMs: z.number().int().nonnegative(),
-  /**
-   * Опубликованы ли итоги. Пока false, игрок не видит ни своих баллов, ни места:
-   * счёт по ходу игры превращает квест в гонку за табло и подсказывает командам,
-   * когда можно перестать стараться. Становится true при завершении игры.
-   */
-  resultsPublished: z.boolean(),
 });
 export type GameState = z.infer<typeof GameState>;
 
@@ -167,13 +161,15 @@ export const SubmitCodeRequest = z.object({
 });
 export type SubmitCodeRequest = z.infer<typeof SubmitCodeRequest>;
 
+/**
+ * Ответ на сдачу кода. Баллов здесь нет намеренно: счёт и места — сведения
+ * для организатора, игроку они не показываются ни во время игры, ни после.
+ * Поля, которых нет в ответе, невозможно подсмотреть в обход интерфейса.
+ */
 export const SubmitCodeResponse = z.object({
   status: SubmissionStatus,
   /** Причина отказа, если status === 'rejected'. */
   reason: z.enum(['wrong_code', 'already_solved', 'too_far', 'game_not_running', 'rate_limited']).nullable(),
-  /** null, пока итоги не опубликованы: игрок видит «принято», но не сумму. */
-  pointsAwarded: z.number().int().nullable(),
-  totalPoints: z.number().int().nullable(),
   /** Расстояние до точки в метрах, когда отказ по гео. */
   distanceM: z.number().nonnegative().nullable(),
 });
@@ -211,10 +207,9 @@ export const ScoreRow = z.object({
 });
 export type ScoreRow = z.infer<typeof ScoreRow>;
 
+/** Табло. Доступно только организатору — публичного маршрута для него нет. */
 export const Scoreboard = z.object({
   serverTime: Timestamp,
-  /** false — итоги ещё не подведены, `rows` намеренно пуст. */
-  published: z.boolean(),
   rows: z.array(ScoreRow),
 });
 export type Scoreboard = z.infer<typeof Scoreboard>;

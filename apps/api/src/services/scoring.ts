@@ -58,34 +58,9 @@ export function computeRows(ctx: AppContext, eventId: string): ScoreRow[] {
   return scored;
 }
 
-/**
- * Табло для выдачи наружу.
- *
- * Пока `published` не выставлен, строки не отдаются вовсе — не «занулены»,
- * а отсутствуют. Занулённое табло всё равно выдаёт состав команд и их число,
- * а пустое не выдаёт ничего.
- */
-export function buildScoreboard(ctx: AppContext, eventId: string, published: boolean): Scoreboard {
-  return {
-    serverTime: Date.now(),
-    published,
-    rows: published ? computeRows(ctx, eventId) : [],
-  };
-}
-
-export function teamTotal(ctx: AppContext, teamId: string): number {
-  const tasks = ctx.db
-    .prepare("SELECT COALESCE(SUM(points_awarded), 0) AS n FROM submissions WHERE team_id = ? AND status = 'accepted'")
-    .get(teamId) as Row | undefined;
-  const quality = ctx.db
-    .prepare(
-      `SELECT COALESCE(SUM(qc.points), 0) AS n
-       FROM quality_claims c JOIN quality_codes qc ON qc.id = c.quality_code_id
-       WHERE c.team_id = ?`,
-    )
-    .get(teamId) as Row | undefined;
-
-  return Number(tasks?.['n'] ?? 0) + Number(quality?.['n'] ?? 0);
+/** Табло для организатора. Публичного маршрута к нему нет — см. routes/admin.ts. */
+export function buildScoreboard(ctx: AppContext, eventId: string): Scoreboard {
+  return { serverTime: Date.now(), rows: computeRows(ctx, eventId) };
 }
 
 /** Идентификаторы заданий, уже закрытых командой. */

@@ -6,10 +6,8 @@ import {
   useClaimQuality,
   useGameClock,
   useGameState,
-  useMe,
   useQualityCodes,
   useQueueFlush,
-  useScoreboard,
   useSubmitCode,
   useTasks,
   type PlayerTask,
@@ -30,10 +28,11 @@ export function Game() {
 
   const tasks = tasksData?.tasks ?? [];
   const solvedCount = tasks.filter((t) => t.solved).length;
-  const published = state?.resultsPublished ?? false;
 
-  // Игра кончилась — показываем итоги вместо списка заданий.
-  if (published) return <Results solvedCount={solvedCount} totalTasks={tasks.length} />;
+  // Игра кончилась — показываем финальный экран вместо списка заданий.
+  if (state?.event.status === 'finished') {
+    return <Finished solvedCount={solvedCount} totalTasks={tasks.length} />;
+  }
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 p-4 pb-24">
@@ -43,8 +42,8 @@ export function Game() {
         <span className="text-sm text-slate-400">
           Задания {solvedCount} / {tasks.length}
         </span>
-        {/* Счёт скрыт до подведения итогов — намеренно, а не «ещё не загрузился». */}
-        <span className="text-sm text-slate-500">Итоги — после игры</span>
+        {/* Счёта здесь нет намеренно: баллы и места объявляет организатор. */}
+        <span className="text-sm text-slate-500">Баллы объявит организатор</span>
       </div>
 
       {pendingOffline > 0 && (
@@ -71,62 +70,29 @@ export function Game() {
   );
 }
 
-/* --------------------------------------------------------------- итоги */
+/* --------------------------------------------------------- конец игры */
 
 /**
- * Финальное табло. Появляется, когда организатор остановил игру или вышло время.
- * До этого момента игрок не видел ни своего счёта, ни чужого.
+ * Финальный экран игрока.
+ *
+ * Ни баллов, ни места, ни чужих команд: итоги — сведения для организатора,
+ * он объявляет их сам. Игрок видит только то, что и так знал по ходу игры:
+ * сколько заданий закрыл.
  */
-function Results({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
-  const { data: board } = useScoreboard();
-  const { data: me } = useMe();
-
-  const rows = board?.rows ?? [];
-  const myIndex = rows.findIndex((row) => row.teamId === me?.team.id);
-  const myRow = myIndex >= 0 ? rows[myIndex] : undefined;
-
+function Finished({ solvedCount, totalTasks }: { solvedCount: number; totalTasks: number }) {
   return (
-    <main className="mx-auto w-full max-w-md space-y-5 p-4 pb-24">
-      <header className="space-y-1 pt-4 text-center">
-        <p className="text-sm uppercase tracking-widest text-slate-500">Игра завершена</p>
-        <h1 className="text-3xl font-black">Итоги</h1>
-      </header>
+    <main className="mx-auto flex min-h-full w-full max-w-md flex-col items-center justify-center gap-6 p-6 text-center">
+      <p className="text-sm uppercase tracking-widest text-slate-500">Игра завершена</p>
 
-      {myRow && (
-        <section className="space-y-1 rounded-2xl bg-gradient-to-b from-cyan-950 to-slate-900 p-5 text-center">
-          <p className="text-6xl font-black text-cyan-400">{myIndex + 1}</p>
-          <p className="text-lg font-bold">{myRow.teamName}</p>
-          <p className="text-slate-400">
-            {myRow.totalPoints} очков · {solvedCount} из {totalTasks} заданий
-          </p>
-          {myRow.qualityPoints > 0 && (
-            <p className="text-sm text-slate-500">из них {myRow.qualityPoints} за качество</p>
-          )}
-        </section>
-      )}
+      <div className="w-full space-y-1 rounded-2xl bg-slate-900 p-6">
+        <p className="text-5xl font-black text-cyan-400">
+          {solvedCount}
+          <span className="text-2xl text-slate-600"> / {totalTasks}</span>
+        </p>
+        <p className="text-slate-400">заданий закрыто</p>
+      </div>
 
-      <section className="rounded-2xl bg-slate-900 p-4">
-        <h2 className="mb-3 font-bold">Все команды</h2>
-        <ul className="space-y-1">
-          {rows.map((row, index) => {
-            const mine = row.teamId === me?.team.id;
-            return (
-              <li
-                key={row.teamId}
-                className={`flex items-center gap-3 rounded-lg px-2 py-2 text-sm ${mine ? 'bg-cyan-950' : ''}`}
-              >
-                <span className={`w-6 text-center font-bold ${index < 3 ? 'text-amber-400' : 'text-slate-600'}`}>
-                  {index + 1}
-                </span>
-                <span className={`flex-1 ${mine ? 'font-bold' : ''}`}>{row.teamName}</span>
-                <span className="text-slate-500">{row.solvedCount}</span>
-                <span className="w-12 text-right font-bold text-cyan-400">{row.totalPoints}</span>
-              </li>
-            );
-          })}
-        </ul>
-        {rows.length === 0 && <p className="text-slate-500">Результатов нет.</p>}
-      </section>
+      <p className="text-slate-400">Спасибо за игру! Итоги и места объявит организатор.</p>
     </main>
   );
 }
@@ -292,10 +258,8 @@ function QualityForm({ taskId }: { taskId: string }) {
 /* ------------------------------------------------------------ помощники */
 
 function describe(result: SubmitCodeResponse): string {
-  // Пока итоги закрыты, сервер не присылает баллы — показываем только факт зачёта.
-  if (result.status === 'accepted') {
-    return result.pointsAwarded === null ? 'Принято' : `Принято, +${result.pointsAwarded}`;
-  }
+  // Баллов в ответе нет — только факт зачёта.
+  if (result.status === 'accepted') return 'Принято';
   switch (result.reason) {
     case 'wrong_code':
       return 'Код не подходит';
