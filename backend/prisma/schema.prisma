@@ -44,6 +44,8 @@ model User {
   inviteRedemptions     InviteRedemption[]
   reviewedApplications  MembershipApplication[] @relation("ApplicationReviewedBy")
   auditLogEntries       AuditLog[]            @relation("AuditActor")
+  uploadedMedia         ChatMedia[]           @relation("MediaUploadedBy")
+  mediaAccessLogEntries MediaAccessLog[]      @relation("MediaViewer")
 
   @@index([status])
 }
@@ -181,6 +183,53 @@ model AuditLog {
   @@index([actorUserId])
   @@index([action])
   @@index([createdAt])
+}
+
+// --- Медиа в чате + защита (ТЗ гл. 3.3) -------------------------------------
+// Байты никогда не проходят через Rocket.Chat — только зашифрованное
+// хранилище на нашем backend (см. docs/DECISIONS.md, "Хранилище медиа
+// в чате"). RC несёт только текстовый маркер-ссылку в теле сообщения.
+
+enum ChatMediaKind {
+  PHOTO
+  VIDEO
+}
+
+model ChatMedia {
+  id              String        @id @default(uuid())
+  uploaderUserId  String
+  uploader        User          @relation("MediaUploadedBy", fields: [uploaderUserId], references: [id])
+  kind            ChatMediaKind
+  storageKey      String // ключ в StorageAdapter (см. backend/src/media/storage)
+  mimeType        String
+  sizeBytes       Int
+  iv              String // AES-256-GCM initialization vector (base64)
+  authTag         String // AES-256-GCM auth tag (base64)
+  createdAt       DateTime      @default(now())
+
+  accessLogs MediaAccessLog[]
+
+  @@index([uploaderUserId])
+}
+
+enum MediaAccessAction {
+  VIEW
+  DOWNLOAD_ATTEMPT
+  SCREENSHOT_DETECTED
+}
+
+model MediaAccessLog {
+  id           String            @id @default(uuid())
+  mediaId      String
+  media        ChatMedia         @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  viewerUserId String
+  viewer       User              @relation("MediaViewer", fields: [viewerUserId], references: [id])
+  action       MediaAccessAction
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+
+  @@index([mediaId])
+  @@index([viewerUserId])
 }
 
 // --- Реестр игровых модулей (ТЗ гл. 3.5) -----------------------------------

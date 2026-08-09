@@ -19,6 +19,9 @@ node_modules
 # Next.js
 .next/
 
+# Локальное dev-хранилище зашифрованных медиа (backend/src/media/storage)
+backend/storage-data/
+
 # IDEs and editors
 /.idea
 .project

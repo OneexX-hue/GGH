@@ -10,6 +10,7 @@ import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { ModulesRegistryModule } from './modules-registry/modules-registry.module';
 import { ChatBridgeModule } from './chat-bridge/chat-bridge.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ChatBridgeModule } from './chat-bridge/chat-bridge.module';
     RolesModule,
     ModulesRegistryModule,
     ChatBridgeModule,
+    MediaModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
