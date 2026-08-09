@@ -21,6 +21,8 @@ config.resolver.nodeModulesPaths = [
 ];
 // pnpm раскладывает пакеты по симлинкам — без этого Metro их не пройдёт.
 config.resolver.unstable_enableSymlinks = true;
-config.resolver.disableHierarchicalLookup = true;
+// Иерархический поиск оставлен включённым намеренно: pnpm держит зависимости
+// пакета рядом с ним в .pnpm/, и при отключённом поиске Metro до них не доходит —
+// сборка падает на пакетах, которые expo-router подключает неявно.
 
 module.exports = config;
