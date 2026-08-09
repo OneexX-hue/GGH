@@ -32,6 +32,13 @@ export class UsersController {
     return this.usersService.listVehicles(user.userId);
   }
 
+  // Доступен любому авторизованному участнику (без users.manage) — нужен,
+  // чтобы начать чат с другим участником клуба.
+  @Get('directory')
+  directory() {
+    return this.usersService.directory();
+  }
+
   @Get()
   @UseGuards(PermissionsGuard)
   @RequirePermission('users.manage')

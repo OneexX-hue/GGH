@@ -3,12 +3,17 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from './auth-context';
 import { LoginScreen } from './screens/LoginScreen';
 import { RegisterScreen } from './screens/RegisterScreen';
-import { HomeScreen } from './screens/HomeScreen';
+import { ChatListScreen } from './screens/ChatListScreen';
+import { NewChatScreen } from './screens/NewChatScreen';
+import { ConversationScreen } from './screens/ConversationScreen';
+import type { RoomType } from './rocketchat/types';
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  Home: undefined;
+  ChatList: undefined;
+  NewChat: undefined;
+  Conversation: { roomId: string; roomType: RoomType; title: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,13 +25,17 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator>
         {token ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <>
+            <Stack.Screen name="ChatList" component={ChatListScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'Новый чат' }} />
+            <Stack.Screen name="Conversation" component={ConversationScreen} />
+          </>
         ) : (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: true }} />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { rocketChatUsernameFor } from '../chat-bridge/rocketchat-username.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 
@@ -34,6 +35,23 @@ export class UsersService {
       orderBy: { createdAt: 'desc' },
       select: { ...PUBLIC_USER_SELECT, email: true, phone: true },
     });
+  }
+
+  /**
+   * Лёгкий справочник участников для старта чата (мобильное приложение) —
+   * доступен любому авторизованному участнику, не только админам, в
+   * отличие от list(). rocketChatUsername вычисляется детерминированно
+   * (см. chat-bridge/rocketchat-username.util) — не требует отдельного
+   * похода в Rocket.Chat.
+   */
+  async directory() {
+    const users = await this.prisma.user.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: { displayName: 'asc' },
+      select: { id: true, displayName: true, avatarUrl: true },
+    });
+
+    return users.map((u) => ({ ...u, rocketChatUsername: rocketChatUsernameFor(u.id) }));
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

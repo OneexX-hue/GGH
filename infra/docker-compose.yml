@@ -31,6 +31,13 @@ services:
       DATABASE_URL: postgresql://carclub:carclub@postgres:5432/carclub?schema=public
       JWT_SECRET: dev-insecure-secret-change-me
       PORT: 3001
+      # Указывать на сервис rocketchat из этого же compose. Admin-токен/userId
+      # выдаются вручную после первичной настройки RC (setup wizard) — см. README.
+      ROCKETCHAT_BASE_URL: http://rocketchat:3000
+      ROCKETCHAT_WS_URL: ws://rocketchat:3000/websocket
+      ROCKETCHAT_ADMIN_TOKEN: ''
+      ROCKETCHAT_ADMIN_USER_ID: ''
+      CREATE_TOKENS_FOR_USERS_SECRET: dev-insecure-rc-token-secret-change-me
     ports:
       - '3001:3001'
 
@@ -45,27 +52,41 @@ services:
     ports:
       - '3000:3000'
 
-  # Rocket.Chat — чат-ядро (docs/DECISIONS.md), поднимать по мере готовности
-  # backend/src/chat-bridge. Собирать образ из исходников без ee/-директории
-  # (см. docs/LICENSING.md) — официальный Docker Hub образ подмешивает ee/,
-  # использовать его без ревью недопустимо по правилам лицензирования проекта.
-  # rocketchat:
-  #   build:
-  #     context: https://github.com/RocketChat/Rocket.Chat.git
-  #     args:
-  #       EXCLUDE_EE: "true"
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - mongo
-  #   ports:
-  #     - '3100:3000'
-  #
-  # mongo:
-  #   image: mongo:6
-  #   restart: unless-stopped
-  #   volumes:
-  #     - rocketchat-mongo-data:/data/db
+  # Rocket.Chat — чат-ядро (docs/DECISIONS.md). Официальный образ как есть —
+  # сборка "без ee/" технически невозможна без несуществующей официальной
+  # поддержки (см. DECISIONS.md, уточнение от 09.08.2026); лицензионный ключ
+  # Enterprise НЕ вводится, ee/-функциональность остаётся неактивной.
+  rocketchat:
+    image: rocket.chat:6.14
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URL: mongodb://mongo:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongo:27017/local?replicaSet=rs0
+      ROOT_URL: http://localhost:3100
+      PORT: 3000
+      # Требуется для backend/src/chat-bridge issueLoginToken (users.createToken) —
+      # см. backend/.env.example. Сменить в проде, здесь — только для локальной разработки.
+      CREATE_TOKENS_FOR_USERS_SECRET: dev-insecure-rc-token-secret-change-me
+    ports:
+      - '3100:3000'
+
+  # Однонодовый replica set — обязателен для Rocket.Chat 4.0+ (oplog/change streams).
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    command: mongod --replSet rs0 --oplogSize 128
+    volumes:
+      - rocketchat-mongo-data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
 
 volumes:
   postgres-data:
-  # rocketchat-mongo-data:
+  rocketchat-mongo-data:
