@@ -1,0 +1,71 @@
+# Локальная разработка (Этап 1). Продакшен-деплой — облако (см.
+# docs/DECISIONS.md), конфигурация под конкретного провайдера появится
+# отдельно после выбора AWS/Yandex Cloud.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carclub
+      POSTGRES_PASSWORD: carclub
+      POSTGRES_DB: carclub
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U carclub']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://carclub:carclub@postgres:5432/carclub?schema=public
+      JWT_SECRET: dev-insecure-secret-change-me
+      PORT: 3001
+    ports:
+      - '3001:3001'
+
+  web-admin:
+    build:
+      context: ../web-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - '3000:3000'
+
+  # Rocket.Chat — чат-ядро (docs/DECISIONS.md), поднимать по мере готовности
+  # backend/src/chat-bridge. Собирать образ из исходников без ee/-директории
+  # (см. docs/LICENSING.md) — официальный Docker Hub образ подмешивает ee/,
+  # использовать его без ревью недопустимо по правилам лицензирования проекта.
+  # rocketchat:
+  #   build:
+  #     context: https://github.com/RocketChat/Rocket.Chat.git
+  #     args:
+  #       EXCLUDE_EE: "true"
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - mongo
+  #   ports:
+  #     - '3100:3000'
+  #
+  # mongo:
+  #   image: mongo:6
+  #   restart: unless-stopped
+  #   volumes:
+  #     - rocketchat-mongo-data:/data/db
+
+volumes:
+  postgres-data:
+  # rocketchat-mongo-data:

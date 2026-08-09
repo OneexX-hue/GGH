@@ -1,0 +1,197 @@
+// CarClub Platform — схема ядра (Этап 1).
+// Игровые модули (Этап 2+, ТЗ гл. 3.5, 5.4) получат собственные схемы/БД
+// и не описываются здесь — ядро не должно знать об их внутренней структуре,
+// только о записи в ModuleDefinition (реестр модулей) и агрегированных очках.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Пользователи и роли (ТЗ гл. 2) --------------------------------------
+
+enum UserStatus {
+  PENDING // ждёт модерации заявки на вступление
+  ACTIVE
+  BANNED
+}
+
+model User {
+  id                String   @id @default(uuid())
+  phone             String?  @unique
+  email             String?  @unique
+  passwordHash      String
+  displayName       String
+  avatarUrl         String?
+  status            UserStatus @default(PENDING)
+  pointsTotal       Int      @default(0) // сводный агрегат, обновляется событиями модулей (Этап 2)
+
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String? // otplib TOTP secret, обязателен для админ-ролей до включения 2FA
+
+  rocketChatUserId  String? @unique // связка с профилем в Rocket.Chat (chat-bridge)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  roles                 UserRole[]
+  vehicles              Vehicle[]
+  createdInvites        Invite[]              @relation("InviteCreatedBy")
+  inviteRedemptions     InviteRedemption[]
+  reviewedApplications  MembershipApplication[] @relation("ApplicationReviewedBy")
+  auditLogEntries       AuditLog[]            @relation("AuditActor")
+
+  @@index([status])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // например "owner", "super_admin", "event_admin", "chat_moderator", "member", "guest"
+  description String?
+  isSystem    Boolean  @default(false) // системные роли (Owner) нельзя удалить/переименовать из админки
+  createdAt   DateTime @default(now())
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  key         String @unique // например "invites.create", "roles.manage", "chat.moderate"
+  description String?
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+}
+
+// --- Приглашения и заявки на вступление (ТЗ гл. 2.1) ----------------------
+
+enum InviteType {
+  SINGLE_USE
+  MULTI_USE
+  PERSONAL // привязан к конкретному email/телефону
+}
+
+model Invite {
+  id              String     @id @default(uuid())
+  code            String     @unique
+  type            InviteType
+  maxUses         Int? // обязателен для MULTI_USE, null для SINGLE_USE (=1) и PERSONAL (=1)
+  usesCount       Int        @default(0)
+  personalContact String? // email или телефон — только для PERSONAL
+
+  createdByUserId String
+  createdBy       User     @relation("InviteCreatedBy", fields: [createdByUserId], references: [id])
+
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  redemptions  InviteRedemption[]
+  applications MembershipApplication[]
+
+  @@index([code])
+}
+
+model InviteRedemption {
+  id         String   @id @default(uuid())
+  inviteId   String
+  invite     Invite   @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  redeemedAt DateTime @default(now())
+
+  @@unique([inviteId, userId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model MembershipApplication {
+  id          String            @id @default(uuid())
+  inviteId    String?
+  invite      Invite?           @relation(fields: [inviteId], references: [id])
+  applicantName String
+  contact     String // email или телефон
+  status      ApplicationStatus @default(PENDING)
+
+  reviewedByUserId String?
+  reviewedBy       User?    @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+// --- Профиль/авто (ТЗ гл. 3.1) --------------------------------------------
+
+model Vehicle {
+  id            String  @id @default(uuid())
+  ownerUserId   String
+  owner         User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  make          String
+  model         String
+  plateNumber   String // тестовые значения — с префиксом TEST- (см. CLAUDE.md)
+  isPlatePublic Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([plateNumber])
+}
+
+// --- Журнал действий администраторов (ТЗ гл. 3.7, обязателен) -------------
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String?
+  actor        User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+  action       String // например "invite.create", "role.assign", "user.ban"
+  targetType   String?
+  targetId     String?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// --- Реестр игровых модулей (ТЗ гл. 3.5) -----------------------------------
+
+model ModuleDefinition {
+  id          String   @id @default(uuid())
+  key         String   @unique // например "auto-quest", "hide-and-seek", "lpr-scoring"
+  name        String
+  description String?
+  isEnabled   Boolean  @default(false)
+  config      Json     @default("{}") // правила начисления баллов, даты проведения и т.д. — специфично модулю
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
