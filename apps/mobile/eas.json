@@ -11,11 +11,11 @@
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://quest.example.com" }
+      "env": { "EXPO_PUBLIC_API_URL": "http://ЗАМЕНИТЕ-НА-СВОЙ-АДРЕС:8080" }
     },
     "production": {
       "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_URL": "https://quest.example.com" }
+      "env": { "EXPO_PUBLIC_API_URL": "http://ЗАМЕНИТЕ-НА-СВОЙ-АДРЕС:8080" }
     }
   },
   "submit": {

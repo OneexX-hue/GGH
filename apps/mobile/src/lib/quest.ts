@@ -8,8 +8,15 @@ const TOKEN_KEY = 'quest_token';
 const DEVICE_KEY = 'quest_device_id';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as { apiUrl?: string; eventSlug?: string };
-const BASE_URL = extra.apiUrl ?? 'http://localhost:8080';
-const EVENT_SLUG = extra.eventSlug ?? 'city-quest';
+
+/**
+ * EXPO_PUBLIC_API_URL (заданный в eas.json на этапе сборки) имеет приоритет
+ * над app.json — иначе собранный APK ходил бы на localhost телефона, а не
+ * на настоящий сервер. app.json остаётся фолбэком для запуска через Expo Go,
+ * где Metro подставляет адрес разработки сам.
+ */
+const BASE_URL = process.env['EXPO_PUBLIC_API_URL'] ?? extra.apiUrl ?? 'http://localhost:8080';
+const EVENT_SLUG = process.env['EXPO_PUBLIC_EVENT_SLUG'] ?? extra.eventSlug ?? 'city-quest';
 
 /**
  * Токен лежит в SecureStore (Keychain на iOS, EncryptedSharedPreferences на Android):
