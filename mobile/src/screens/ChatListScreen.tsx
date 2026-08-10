@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAuth } from '../auth-context';
 import { useChat } from '../chat-context';
 import type { RCSubscription } from '../rocketchat/types';
 import type { RootStackParamList } from '../navigation';
@@ -9,7 +8,6 @@ import type { RootStackParamList } from '../navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export function ChatListScreen({ navigation }: Props) {
-  const { logout } = useAuth();
   const { ready, error, restClient } = useChat();
   const [rooms, setRooms] = useState<RCSubscription[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,8 +51,8 @@ export function ChatListScreen({ navigation }: Props) {
           <Pressable onPress={() => navigation.navigate('NewChat')}>
             <Text style={styles.headerAction}>Новый чат</Text>
           </Pressable>
-          <Pressable onPress={() => logout()}>
-            <Text style={styles.headerAction}>Выйти</Text>
+          <Pressable onPress={() => navigation.navigate('Profile')}>
+            <Text style={styles.headerAction}>Профиль</Text>
           </Pressable>
         </View>
       </View>
