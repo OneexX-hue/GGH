@@ -13,6 +13,7 @@ export function NavBar() {
         <>
           <Link href="/members">Участники</Link>
           <Link href="/invites">Приглашения</Link>
+          <Link href="/applications">Заявки</Link>
           <Link href="/roles">Роли</Link>
           <Link href="/moderation">Модерация</Link>
           <Link href="/security">Безопасность</Link>
