@@ -11,6 +11,7 @@ export function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,7 +19,7 @@ export function LoginScreen({ navigation }: Props) {
     setError(null);
     setSubmitting(true);
     try {
-      await login(identifier, password);
+      await login(identifier, password, totpCode || undefined);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось войти');
     } finally {
@@ -44,6 +45,15 @@ export function LoginScreen({ navigation }: Props) {
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Код 2FA (если включена)"
+        placeholderTextColor="#888"
+        keyboardType="number-pad"
+        maxLength={6}
+        value={totpCode}
+        onChangeText={setTotpCode}
       />
       {error && <Text style={styles.error}>{error}</Text>}
       <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>

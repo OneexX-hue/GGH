@@ -8,7 +8,7 @@ import { ApiError } from '../../lib/api';
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [identifier, setIdentifier] = useState('test-owner@carclub.local');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState<string | null>(null);

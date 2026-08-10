@@ -16,7 +16,7 @@ interface TokenPair {
 interface AuthContextValue {
   token: string | null;
   loading: boolean;
-  login: (identifier: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string, totpCode?: string) => Promise<void>;
   register: (input: {
     inviteCode: string;
     email?: string;
@@ -81,10 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [token]);
 
-  async function login(identifier: string, password: string) {
+  async function login(identifier: string, password: string, totpCode?: string) {
     const result = await apiFetch<TokenPair>('/auth/login', {
       method: 'POST',
-      body: { identifier, password },
+      body: { identifier, password, totpCode },
     });
     await persistTokens(result);
   }

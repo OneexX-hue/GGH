@@ -46,6 +46,17 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException(`Недостаточно прав: требуется "${requiredPermission}"`);
     }
 
+    // ТЗ гл. 3.1/4: 2FA обязательна для ролей с административными правами.
+    // Сам логин ею не блокируется (иначе включить 2FA было бы неоткуда —
+    // /auth/2fa/start требует уже залогиненной сессии), но выполнение любого
+    // действия за @RequirePermission требует включённой 2FA у аккаунта.
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { twoFactorEnabled: true } });
+    if (!user?.twoFactorEnabled) {
+      throw new ForbiddenException(
+        'Для этого действия требуется включённая двухфакторная аутентификация (2FA) — включите её в настройках профиля',
+      );
+    }
+
     return true;
   }
 }

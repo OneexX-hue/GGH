@@ -130,7 +130,7 @@ export class ChatBridgeService {
       );
     }
 
-    const response = await fetch(`${this.baseUrl}/api/v1/users.createToken`, {
+    const response = await this.rocketChatFetch('/api/v1/users.createToken', {
       method: 'POST',
       headers: this.adminHeaders(),
       body: JSON.stringify({ userId: user.rocketChatUserId, secret: this.createTokensSecret }),
@@ -165,7 +165,7 @@ export class ChatBridgeService {
     if (params.count) query.set('count', String(params.count));
     if (params.offset) query.set('offset', String(params.offset));
 
-    const response = await fetch(`${this.baseUrl}/api/v1/rooms.adminRooms?${query.toString()}`, {
+    const response = await this.rocketChatFetch(`/api/v1/rooms.adminRooms?${query.toString()}`, {
       headers: this.adminHeaders(),
     });
     if (!response.ok) {
@@ -180,8 +180,8 @@ export class ChatBridgeService {
     this.assertConfigured();
 
     const endpoint = HISTORY_ENDPOINT_BY_ROOM_TYPE[roomType];
-    const response = await fetch(
-      `${this.baseUrl}/api/v1/${endpoint}?roomId=${encodeURIComponent(roomId)}&count=${count}`,
+    const response = await this.rocketChatFetch(
+      `/api/v1/${endpoint}?roomId=${encodeURIComponent(roomId)}&count=${count}`,
       { headers: this.adminHeaders() },
     );
     if (!response.ok) {
@@ -195,7 +195,7 @@ export class ChatBridgeService {
   async deleteMessage(roomId: string, msgId: string): Promise<void> {
     this.assertConfigured();
 
-    const response = await fetch(`${this.baseUrl}/api/v1/chat.delete`, {
+    const response = await this.rocketChatFetch('/api/v1/chat.delete', {
       method: 'POST',
       headers: this.adminHeaders(),
       body: JSON.stringify({ roomId, msgId }),
@@ -233,6 +233,20 @@ export class ChatBridgeService {
   private assertConfigured(): void {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('Модерация чата недоступна: Rocket.Chat не сконфигурирован');
+    }
+  }
+
+  /**
+   * Оборачивает fetch() к Rocket.Chat: сетевой сбой (сервис недоступен,
+   * DNS и т.п.) раньше улетал наружу как непойманный TypeError и
+   * превращался в голый "Internal server error" вместо понятного ответа —
+   * см. README.md, обнаружено при верификации модерации.
+   */
+  private async rocketChatFetch(path: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(`${this.baseUrl}${path}`, init);
+    } catch (error) {
+      throw new BadGatewayException(`Rocket.Chat недоступен: ${(error as Error).message}`);
     }
   }
 

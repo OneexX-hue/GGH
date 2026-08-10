@@ -12,6 +12,7 @@ const PUBLIC_USER_SELECT = {
   avatarUrl: true,
   status: true,
   pointsTotal: true,
+  twoFactorEnabled: true,
   createdAt: true,
   roles: { select: { role: { select: { id: true, name: true } } } },
 } as const;
