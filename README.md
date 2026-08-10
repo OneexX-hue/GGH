@@ -133,10 +133,46 @@ prevent/allow/addListener`, `CaptureEventType.CAPTURED`), но живой
 водяного знака; плеер полученный по токенизированной ссылке открывается
 в системном приложении).
 
-**Не реализовано** (следующие итерации): модерация чата в web-admin;
-push-уведомления; автоматическое уведомление администратора при
-детекте скриншота (событие пишется в журнал, отдельного канала
-уведомлений нет); реакции/reply/forward/поиск по сообщениям/статус
-прочтения; self-destruct-сообщения; реальный деплой в облако; модуль
-LPR (заблокирован до решения по бюджету — `docs/DECISIONS.md`); игровые
+**Модерация чата в web-admin** (ТЗ гл. 3.7): реализовано —
+`GET /moderation/rooms` (список всех комнат через admin REST API
+`rooms.adminRooms`), `GET /moderation/rooms/:id/messages` (история
+через `im.history`/`groups.history`/`channels.history` с
+админ-заголовками), `DELETE /moderation/rooms/:id/messages/:msgId`
+(`chat.delete`) — все три за правом `chat.moderate`
+(`backend/src/chat-bridge/chat-moderation.controller.ts`); бан
+участника (`POST /users/:id/ban`) теперь дополнительно best-effort
+деактивирует его в Rocket.Chat (`users.setActiveStatus`); новая
+страница `GET /media/access-log` (тоже `chat.moderate`) — журнал
+VIEW/DOWNLOAD_ATTEMPT/SCREENSHOT_DETECTED с фильтром по типу события.
+Страница `web-admin/app/moderation/`.
+
+При верификации этой функциональности обнаружен и исправлен
+пред-существующий баг `PermissionsGuard`
+(`backend/src/common/guards/permissions.guard.ts`): проверка читала
+метаданные `@RequirePermission()` только через `context.getHandler()`,
+что не видит декоратор, применённый на уровне класса контроллера — это
+молча пропускало проверку прав для `ModulesRegistryController`
+(`modules.manage` был де-факто не защищён от обычных авторизованных
+участников). Исправлено на `reflector.getAllAndOverride(key,
+[context.getHandler(), context.getClass()])`.
+
+Проверено сквозным прогоном на реальном backend + мок-сервере
+Rocket.Chat: список комнат → история сообщений → удаление сообщения →
+подтверждено, что оно пропало из истории; бан участника →
+подтверждён вызов `users.setActiveStatus` на мок-сервере; обычный
+участник (без `chat.moderate`) получает 403 на всех эндпоинтах
+модерации и на `/media/access-log`; `GET /media/access-log` проверен
+на реальных данных Postgres, включая фильтр по `SCREENSHOT_DETECTED`.
+Страница `web-admin/app/moderation/` проверена в браузере (Playwright
++ Chromium): вход, список комнат, открытие комнаты, удаление сообщения
+по клику, журнал доступа с подсветкой `SCREENSHOT_DETECTED`.
+
+**Не реализовано** (следующие итерации): push-уведомления;
+автоматическое уведомление администратора при детекте скриншота
+(событие пишется в журнал, отдельного канала уведомлений нет); лента
+жалоб/репортов от пользователей (RC `moderation.reportsList` не
+встроена в наш UX); временный мут участника (только полный бан);
+реакции/reply/forward/поиск по сообщениям/статус прочтения;
+self-destruct-сообщения; реальный деплой в облако; модуль LPR
+(заблокирован до решения по бюджету — `docs/DECISIONS.md`); игровые
 модули (Этап 2).

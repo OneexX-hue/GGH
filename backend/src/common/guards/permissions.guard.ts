@@ -13,7 +13,14 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermission = this.reflector.get<string | undefined>(PERMISSION_KEY, context.getHandler());
+    // getAllAndOverride, а не get(..., context.getHandler()): декоратор,
+    // применённый на уровне класса (см. ChatModerationController,
+    // ModulesRegistryController), не читается через getHandler() в одиночку —
+    // это молча пропускало проверку прав для таких контроллеров.
+    const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(PERMISSION_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!requiredPermission) {
       return true;
     }

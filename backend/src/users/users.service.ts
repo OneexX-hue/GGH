@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { ChatBridgeService } from '../chat-bridge/chat-bridge.service';
 import { rocketChatUsernameFor } from '../chat-bridge/rocketchat-username.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
@@ -20,6 +21,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
+    private readonly chatBridge: ChatBridgeService,
   ) {}
 
   async findById(id: string) {
@@ -66,8 +68,12 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id: targetUserId },
       data: { status: 'BANNED' },
-      select: PUBLIC_USER_SELECT,
+      select: { ...PUBLIC_USER_SELECT, rocketChatUserId: true },
     });
+
+    if (user.rocketChatUserId) {
+      await this.chatBridge.setUserActive(user.rocketChatUserId, false);
+    }
 
     await this.auditLog.record({
       actorUserId,
@@ -77,7 +83,8 @@ export class UsersService {
       ipAddress,
     });
 
-    return user;
+    const { rocketChatUserId: _rocketChatUserId, ...publicUser } = user;
+    return publicUser;
   }
 
   async addVehicle(userId: string, dto: CreateVehicleDto) {

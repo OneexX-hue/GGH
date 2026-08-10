@@ -16,6 +16,32 @@ export interface ChatSession {
   authToken: string;
 }
 
+export type ModerationRoomType = 'd' | 'p' | 'c';
+
+export interface ModerationRoom {
+  _id: string;
+  t: ModerationRoomType;
+  name?: string;
+  fname?: string;
+  msgs?: number;
+  usersCount?: number;
+  ts?: string;
+}
+
+export interface ModerationMessage {
+  _id: string;
+  rid: string;
+  msg: string;
+  ts: string;
+  u: { _id: string; username: string; name?: string };
+}
+
+const HISTORY_ENDPOINT_BY_ROOM_TYPE: Record<ModerationRoomType, string> = {
+  d: 'im.history',
+  p: 'groups.history',
+  c: 'channels.history',
+};
+
 /**
  * Интеграционный слой с Rocket.Chat (ТЗ гл. 5.3, DECISIONS.md — чат-ядро).
  * Наш backend остаётся источником истины по пользователям/ролям — этот
@@ -125,6 +151,89 @@ export class ChatBridgeService {
       rocketChatUserId: body.data.userId,
       authToken: body.data.authToken,
     };
+  }
+
+  /**
+   * Модерация (ТЗ гл. 3.7): список всех комнат через admin REST API RC.
+   * Требует на стороне Rocket.Chat права view-room-administration у
+   * пользователя ROCKETCHAT_ADMIN_USER_ID.
+   */
+  async listRooms(params: { count?: number; offset?: number } = {}): Promise<ModerationRoom[]> {
+    this.assertConfigured();
+
+    const query = new URLSearchParams();
+    if (params.count) query.set('count', String(params.count));
+    if (params.offset) query.set('offset', String(params.offset));
+
+    const response = await fetch(`${this.baseUrl}/api/v1/rooms.adminRooms?${query.toString()}`, {
+      headers: this.adminHeaders(),
+    });
+    if (!response.ok) {
+      throw new BadGatewayException(`Rocket.Chat rooms.adminRooms вернул ${response.status}`);
+    }
+
+    const body = (await response.json()) as { rooms?: ModerationRoom[] };
+    return body.rooms ?? [];
+  }
+
+  async getRoomHistory(roomId: string, roomType: ModerationRoomType, count = 50): Promise<ModerationMessage[]> {
+    this.assertConfigured();
+
+    const endpoint = HISTORY_ENDPOINT_BY_ROOM_TYPE[roomType];
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/${endpoint}?roomId=${encodeURIComponent(roomId)}&count=${count}`,
+      { headers: this.adminHeaders() },
+    );
+    if (!response.ok) {
+      throw new BadGatewayException(`Rocket.Chat ${endpoint} вернул ${response.status}`);
+    }
+
+    const body = (await response.json()) as { messages?: ModerationMessage[] };
+    return body.messages ?? [];
+  }
+
+  async deleteMessage(roomId: string, msgId: string): Promise<void> {
+    this.assertConfigured();
+
+    const response = await fetch(`${this.baseUrl}/api/v1/chat.delete`, {
+      method: 'POST',
+      headers: this.adminHeaders(),
+      body: JSON.stringify({ roomId, msgId }),
+    });
+    if (!response.ok) {
+      throw new BadGatewayException(`Rocket.Chat chat.delete вернул ${response.status}`);
+    }
+  }
+
+  /**
+   * Best-effort (как и provisionUser): используется из UsersService.ban,
+   * не должен блокировать бан в ядре, если Rocket.Chat недоступен/не
+   * настроен.
+   */
+  async setUserActive(rocketChatUserId: string, active: boolean): Promise<void> {
+    if (!this.isConfigured()) {
+      this.logger.warn(`Rocket.Chat не настроен — пропускаю смену активности для ${rocketChatUserId}`);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/users.setActiveStatus`, {
+        method: 'POST',
+        headers: this.adminHeaders(),
+        body: JSON.stringify({ userId: rocketChatUserId, activeStatus: active }),
+      });
+      if (!response.ok) {
+        throw new Error(`Rocket.Chat users.setActiveStatus вернул ${response.status}`);
+      }
+    } catch (error) {
+      this.logger.error(`Не удалось изменить активность пользователя в Rocket.Chat: ${(error as Error).message}`);
+    }
+  }
+
+  private assertConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('Модерация чата недоступна: Rocket.Chat не сконфигурирован');
+    }
   }
 
   private adminHeaders(): Record<string, string> {

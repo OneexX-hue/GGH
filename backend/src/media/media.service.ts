@@ -100,6 +100,28 @@ export class MediaService {
     return { buffer: output, mimeType: media.mimeType };
   }
 
+  /**
+   * Журнал доступа для модерации (ТЗ гл. 3.7) — в первую очередь для
+   * просмотра SCREENSHOT_DETECTED. Права проверяются на уровне
+   * контроллера (chat.moderate), не здесь.
+   */
+  async listAccessLog(params: { action?: MediaAccessAction; skip?: number; take?: number }) {
+    return this.prisma.mediaAccessLog.findMany({
+      where: params.action ? { action: params.action } : undefined,
+      skip: params.skip ?? 0,
+      take: params.take ?? 100,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        action: true,
+        metadata: true,
+        createdAt: true,
+        media: { select: { id: true, kind: true, uploader: { select: { id: true, displayName: true } } } },
+        viewer: { select: { id: true, displayName: true } },
+      },
+    });
+  }
+
   async logAccessEvent(
     mediaId: string,
     viewerUserId: string,

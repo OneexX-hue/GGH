@@ -14,9 +14,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
+import { MediaAccessAction } from '@prisma/client';
 import { MediaService } from './media.service';
 import { ReportAccessEventDto } from './dto/access-log.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 МБ — достаточно для фото/коротких видео на этом этапе
@@ -59,5 +62,16 @@ export class MediaController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.mediaService.logAccessEvent(id, user.userId, dto.action, dto.metadata);
+  }
+
+  @Get('access-log')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('chat.moderate')
+  listAccessLog(@Query('action') action?: MediaAccessAction, @Query('skip') skip?: string, @Query('take') take?: string) {
+    return this.mediaService.listAccessLog({
+      action,
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+    });
   }
 }

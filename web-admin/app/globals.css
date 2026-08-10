@@ -91,3 +91,8 @@ button:hover {
   background: #262a33;
   font-size: 12px;
 }
+
+.badge-danger {
+  background: #7f1d1d;
+  color: #fecaca;
+}
