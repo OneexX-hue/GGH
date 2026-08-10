@@ -1,12 +1,21 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { apiFetch } from './api';
 
-// MVP-упрощение: токен хранится в localStorage. Для продакшена (Этап 4,
-// продакшен-готовность) заменить на httpOnly cookie + refresh-эндпоинт,
-// чтобы снизить риск XSS-кражи токена в админ-панели.
-const STORAGE_KEY = 'carclub_admin_token';
+// MVP-упрощение: токены хранятся в localStorage, а не httpOnly cookie
+// (снижает риск XSS-кражи токена в админ-панели) — за это отвечает
+// Этап 4, продакшен-готовность.
+const ACCESS_TOKEN_KEY = 'carclub_admin_token';
+const REFRESH_TOKEN_KEY = 'carclub_admin_refresh_token';
+// Держим меньше TTL access-токена на backend (auth.service.ts, issueTokens:
+// '15m'), чтобы обновлять его до истечения, а не после.
+const REFRESH_INTERVAL_MS = 13 * 60 * 1000;
+
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
 
 interface AuthContextValue {
   token: string | null;
@@ -20,24 +29,57 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const refreshTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setToken(localStorage.getItem(STORAGE_KEY));
+    setToken(localStorage.getItem(ACCESS_TOKEN_KEY));
+    refreshTokenRef.current = localStorage.getItem(REFRESH_TOKEN_KEY);
     setLoading(false);
   }, []);
 
+  function persistTokens({ accessToken, refreshToken }: TokenPair) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    refreshTokenRef.current = refreshToken;
+    setToken(accessToken);
+  }
+
+  function clearTokens() {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    refreshTokenRef.current = null;
+    setToken(null);
+  }
+
+  // Тихое фоновое обновление access-токена, пока открыта вкладка с сессией —
+  // без этого refreshToken выпускался бы, но никогда не использовался.
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(async () => {
+      if (!refreshTokenRef.current) return;
+      try {
+        const result = await apiFetch<TokenPair>('/auth/refresh', {
+          method: 'POST',
+          body: { refreshToken: refreshTokenRef.current },
+        });
+        persistTokens(result);
+      } catch {
+        clearTokens();
+      }
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [token]);
+
   async function login(identifier: string, password: string, totpCode?: string) {
-    const result = await apiFetch<{ accessToken: string }>('/auth/login', {
+    const result = await apiFetch<TokenPair>('/auth/login', {
       method: 'POST',
       body: { identifier, password, totpCode },
     });
-    localStorage.setItem(STORAGE_KEY, result.accessToken);
-    setToken(result.accessToken);
+    persistTokens(result);
   }
 
   function logout() {
-    localStorage.removeItem(STORAGE_KEY);
-    setToken(null);
+    clearTokens();
   }
 
   return <AuthContext.Provider value={{ token, loading, login, logout }}>{children}</AuthContext.Provider>;

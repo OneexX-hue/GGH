@@ -113,6 +113,25 @@ export class AuthService {
     return this.issueTokens(user.id);
   }
 
+  async refresh(refreshToken: string) {
+    let payload: { sub: string; type?: string };
+    try {
+      payload = this.jwt.verify(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Недействительный или истёкший refresh-токен');
+    }
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Недействительный refresh-токен');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || user.status === 'BANNED') {
+      throw new UnauthorizedException('Недействительный refresh-токен');
+    }
+
+    return this.issueTokens(user.id);
+  }
+
   async enable2faStart(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const secret = this.totp.generateSecret();
