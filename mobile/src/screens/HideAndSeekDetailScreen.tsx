@@ -109,10 +109,10 @@ export function HideAndSeekDetailScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121316' },
+  container: { flex: 1, backgroundColor: '#0a0a0b' },
   content: { padding: 16 },
-  infoText: { color: '#e8e6e1', fontSize: 15, marginBottom: 12 },
-  doneText: { color: '#7fce9a', fontSize: 15, marginBottom: 12 },
+  infoText: { color: '#f0f0ee', fontSize: 15, marginBottom: 12 },
+  doneText: { color: '#7fbf94', fontSize: 15, marginBottom: 12 },
   redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1 },
   findButton: { borderRadius: 8 },
@@ -120,8 +120,8 @@ const styles = StyleSheet.create({
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   medal: { width: 28, fontSize: 16 },
-  leaderName: { flex: 1, color: '#e8e6e1' },
-  leaderPoints: { color: '#e8a33d', fontWeight: '700' },
-  dim: { color: '#9a9691' },
-  success: { color: '#7fce9a' },
+  leaderName: { flex: 1, color: '#f0f0ee' },
+  leaderPoints: { color: '#f0f0ee', fontWeight: '700' },
+  dim: { color: '#87878a' },
+  success: { color: '#7fbf94' },
 });

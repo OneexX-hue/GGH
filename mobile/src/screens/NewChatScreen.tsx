@@ -118,7 +118,7 @@ export function NewChatScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121316', padding: 16 },
+  container: { flex: 1, backgroundColor: '#0a0a0b', padding: 16 },
   groupOptions: { marginTop: 12, gap: 12 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   switchLabel: { flex: 1, marginRight: 8 },

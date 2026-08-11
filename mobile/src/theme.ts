@@ -1,20 +1,20 @@
 import { MD3DarkTheme } from 'react-native-paper';
 import { DarkTheme as NavigationDarkTheme } from '@react-navigation/native';
 
-// Единая палитра с web-admin (см. web-admin/app/globals.css) — тот же
-// амбер-акцент и асфальтовый тёмный фон, чтобы клиентское приложение и
-// админ-панель считывались как один продукт.
-const colors = {
-  primary: '#e8a33d',
-  onPrimary: '#1a1206',
-  background: '#121316',
-  surface: '#1a1c20',
-  surfaceVariant: '#212327',
-  onSurface: '#e8e6e1',
-  onSurfaceVariant: '#9a9691',
-  outline: '#2a2d33',
-  error: '#e5766b',
-  onError: '#200a08',
+// Единая палитра с web-admin (см. web-admin/app/globals.css) —
+// монохромная чёрно-белая схема вместо прежнего амбер-акцента, чтобы
+// клиентское приложение и админ-панель считывались как один продукт.
+export const colors = {
+  primary: '#f0f0ee',
+  onPrimary: '#0a0a0b',
+  background: '#0a0a0b',
+  surface: '#131315',
+  surfaceVariant: '#1c1c1f',
+  onSurface: '#f0f0ee',
+  onSurfaceVariant: '#87878a',
+  outline: '#222225',
+  error: '#d97a72',
+  onError: '#1c0806',
 };
 
 export const paperTheme = {

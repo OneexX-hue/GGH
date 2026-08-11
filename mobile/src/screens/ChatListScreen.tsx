@@ -99,11 +99,11 @@ function initials(name: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121316' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121316', gap: 12 },
+  container: { flex: 1, backgroundColor: '#0a0a0b' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a0b', gap: 12 },
   row: { paddingHorizontal: 16, alignItems: 'center' },
   badge: { alignSelf: 'center' },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  dim: { color: '#9a9691', textAlign: 'center', marginTop: 8 },
-  error: { color: '#e5766b', textAlign: 'center', marginVertical: 8 },
+  dim: { color: '#87878a', textAlign: 'center', marginTop: 8 },
+  error: { color: '#d97a72', textAlign: 'center', marginVertical: 8 },
 });

@@ -5,6 +5,7 @@ import type { EmitterSubscription } from 'react-native';
 import { useAuth } from '../auth-context';
 import { getMediaAccessToken, mediaContentUrl, reportMediaAccessEvent } from './media-client';
 import type { MediaKind } from './types';
+import { colors } from '../theme';
 
 interface Props {
   mediaId: string;
@@ -77,7 +78,7 @@ export function ProtectedMediaViewer({ mediaId, kind }: Props) {
   if (!contentUrl) {
     return (
       <View style={styles.box}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -103,19 +104,19 @@ const styles = StyleSheet.create({
     width: 220,
     height: 160,
     borderRadius: 8,
-    backgroundColor: '#1b1f27',
+    backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  photo: { width: 220, height: 220, borderRadius: 8, backgroundColor: '#1b1f27' },
+  photo: { width: 220, height: 220, borderRadius: 8, backgroundColor: colors.surfaceVariant },
   videoBox: {
     width: 220,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#1b1f27',
+    backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  videoLabel: { color: '#93c5fd', fontWeight: '600' },
-  error: { color: '#f87171', padding: 8, textAlign: 'center' },
+  videoLabel: { color: colors.primary, fontWeight: '600' },
+  error: { color: colors.error, padding: 8, textAlign: 'center' },
 });
