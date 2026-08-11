@@ -12,6 +12,7 @@ import { ModulesRegistryModule } from './modules-registry/modules-registry.modul
 import { ChatBridgeModule } from './chat-bridge/chat-bridge.module';
 import { MediaModule } from './media/media.module';
 import { AutoQuestModule } from './modules/auto-quest/auto-quest.module';
+import { HideAndSeekModule } from './modules/hide-and-seek/hide-and-seek.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AutoQuestModule } from './modules/auto-quest/auto-quest.module';
     ChatBridgeModule,
     MediaModule,
     AutoQuestModule,
+    HideAndSeekModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

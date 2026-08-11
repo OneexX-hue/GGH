@@ -101,6 +101,18 @@ async function main() {
     },
   });
 
+  // Реестр игрового модуля "прятки" (Этап 2) — тоже выключен по умолчанию.
+  await prisma.moduleDefinition.upsert({
+    where: { key: 'hide-and-seek' },
+    update: {},
+    create: {
+      key: 'hide-and-seek',
+      name: 'Прятки',
+      description: 'Один участник прячется и лично называет код найденному, баллы за находку',
+      isEnabled: false,
+    },
+  });
+
   console.log('Seed complete. Test owner: test-owner@carclub.local / TEST-owner-password-123');
   console.log('Test invite code: TEST-INVITE-0001');
 }

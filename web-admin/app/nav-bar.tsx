@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/roles', label: 'Роли', icon: '🛡️' },
   { href: '/modules', label: 'Модули', icon: '🧩' },
   { href: '/quests', label: 'Квесты', icon: '🗺️' },
+  { href: '/hide-and-seek', label: 'Прятки', icon: '🙈' },
   { href: '/moderation', label: 'Модерация', icon: '💬' },
   { href: '/security', label: 'Безопасность', icon: '🔐' },
 ];

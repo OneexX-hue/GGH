@@ -51,6 +51,7 @@ export function ChatListScreen({ navigation }: Props) {
         <Appbar.Content title="💬 Чаты" />
         <Appbar.Action icon="plus-circle-outline" onPress={() => navigation.navigate('NewChat')} />
         <Appbar.Action icon="map-marker-path" onPress={() => navigation.navigate('Quests')} />
+        <Appbar.Action icon="incognito" onPress={() => navigation.navigate('HideAndSeek')} />
         <Appbar.Action icon="account-circle-outline" onPress={() => navigation.navigate('Profile')} />
       </Appbar.Header>
       {loadError && <Text style={styles.error}>⚠️ {loadError}</Text>}

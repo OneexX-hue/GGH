@@ -9,6 +9,8 @@ import { ConversationScreen } from './screens/ConversationScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { QuestListScreen } from './screens/QuestListScreen';
 import { QuestDetailScreen } from './screens/QuestDetailScreen';
+import { HideAndSeekListScreen } from './screens/HideAndSeekListScreen';
+import { HideAndSeekDetailScreen } from './screens/HideAndSeekDetailScreen';
 import { navigationTheme } from './theme';
 import type { RoomType } from './rocketchat/types';
 
@@ -30,6 +32,8 @@ export type RootStackParamList = {
   Profile: undefined;
   Quests: undefined;
   QuestDetail: { questId: string; title: string; checkpoints: QuestCheckpointParam[] };
+  HideAndSeek: undefined;
+  HideAndSeekDetail: { roundId: string; title: string; points: number; iAmHider: boolean; found: boolean };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -52,6 +56,12 @@ export function RootNavigator() {
             <Stack.Screen
               name="QuestDetail"
               component={QuestDetailScreen}
+              options={({ route }) => ({ title: route.params.title })}
+            />
+            <Stack.Screen name="HideAndSeek" component={HideAndSeekListScreen} options={{ title: '🙈 Прятки' }} />
+            <Stack.Screen
+              name="HideAndSeekDetail"
+              component={HideAndSeekDetailScreen}
               options={({ route }) => ({ title: route.params.title })}
             />
           </>

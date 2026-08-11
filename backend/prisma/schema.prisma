@@ -49,6 +49,9 @@ model User {
   statEvents            StatEvent[]           @relation("StatEventUser")
   createdQuests         Quest[]               @relation("QuestCreatedBy")
   questRedemptions      QuestCheckpointRedemption[] @relation("QuestRedemptions")
+  createdHideAndSeekRounds HideAndSeekRound[]  @relation("HideAndSeekRoundCreatedBy")
+  hiddenInRounds        HideAndSeekRound[]    @relation("HideAndSeekRoundHider")
+  hideAndSeekFinds      HideAndSeekFind[]     @relation("HideAndSeekFindSeeker")
 
   @@index([status])
 }
@@ -319,4 +322,43 @@ model QuestCheckpointRedemption {
 
   @@unique([checkpointId, userId]) // анти-фрод: одно начисление на пару чекпоинт-участник
   @@index([userId])
+}
+
+// --- Модуль "Прятки" (Этап 2, backend/src/modules/hide-and-seek/) ---------
+// Тот же принцип, что у авто-квеста: верификация секретным кодом,
+// передаваемым лично при личном контакте, не GPS и не фото-распознаванием
+// (см. docs/DECISIONS.md — обе развилки заблокированы). Один участник
+// раунда назначается "прячущимся" (hider) организатором; когда его
+// физически находит другой участник ("seeker"), hider называет секретный
+// код лично, seeker вводит его в приложении и получает баллы.
+model HideAndSeekRound {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean   @default(true) // ручное завершение организатором
+  hiderUserId     String
+  hider           User      @relation("HideAndSeekRoundHider", fields: [hiderUserId], references: [id])
+  code            String    // секретный код, называемый hider'ом лично — plaintext, как Quest.code
+  points          Int
+  createdByUserId String
+  createdBy       User      @relation("HideAndSeekRoundCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  finds HideAndSeekFind[]
+}
+
+model HideAndSeekFind {
+  id            String           @id @default(uuid())
+  roundId       String
+  round         HideAndSeekRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  seekerUserId  String
+  seeker        User             @relation("HideAndSeekFindSeeker", fields: [seekerUserId], references: [id])
+  statEventId   String?          @unique
+  foundAt       DateTime         @default(now())
+
+  @@unique([roundId, seekerUserId]) // анти-фрод: один seeker получает баллы за раунд один раз
+  @@index([seekerUserId])
 }
