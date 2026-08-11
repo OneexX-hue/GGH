@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ModulesRegistryService } from './modules-registry.service';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
@@ -8,22 +8,26 @@ import { RequirePermission } from '../common/decorators/require-permission.decor
 import { CurrentUser, AuthenticatedUser } from '../common/decorators/current-user.decorator';
 
 @Controller('modules')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermission('modules.manage')
 export class ModulesRegistryController {
   constructor(private readonly modulesRegistryService: ModulesRegistryService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('modules.manage')
   list() {
     return this.modulesRegistryService.list();
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('modules.manage')
   register(@Body() dto: CreateModuleDto, @CurrentUser() user: AuthenticatedUser, @Req() req: any) {
     return this.modulesRegistryService.register(dto, user.userId, req.ip);
   }
 
   @Patch(':key')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('modules.manage')
   update(
     @Param('key') key: string,
     @Body() dto: UpdateModuleDto,
@@ -31,5 +35,13 @@ export class ModulesRegistryController {
     @Req() req: any,
   ) {
     return this.modulesRegistryService.update(key, dto, user.userId, req.ip);
+  }
+
+  // Лидерборд по модулю виден всем авторизованным участникам, не только
+  // модераторам/админам — не за @RequirePermission('modules.manage').
+  @Get(':key/leaderboard')
+  @UseGuards(JwtAuthGuard)
+  leaderboard(@Param('key') key: string, @Query('limit') limit?: string) {
+    return this.modulesRegistryService.leaderboard(key, limit ? Number(limit) : undefined);
   }
 }

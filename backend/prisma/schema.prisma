@@ -46,6 +46,7 @@ model User {
   auditLogEntries       AuditLog[]            @relation("AuditActor")
   uploadedMedia         ChatMedia[]           @relation("MediaUploadedBy")
   mediaAccessLogEntries MediaAccessLog[]      @relation("MediaViewer")
+  statEvents            StatEvent[]           @relation("StatEventUser")
 
   @@index([status])
 }
@@ -243,4 +244,28 @@ model ModuleDefinition {
   config      Json     @default("{}") // правила начисления баллов, даты проведения и т.д. — специфично модулю
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  statEvents StatEvent[]
+}
+
+// --- Геймификация: журнал событий начисления баллов (ТЗ гл. 3.6) ----------
+// Общая инфраструктура для всех игровых модулей (не только авто-квеста) —
+// из неё строится и сводный лидерборд клуба (через User.pointsTotal,
+// обновляется в той же транзакции, см. ModulesRegistryService), и
+// лидерборд по конкретному модулю (ModulesRegistryService.leaderboard).
+model StatEvent {
+  id         String           @id @default(uuid())
+  moduleKey  String
+  moduleDef  ModuleDefinition @relation(fields: [moduleKey], references: [key])
+  userId     String
+  user       User             @relation("StatEventUser", fields: [userId], references: [id])
+  points     Int
+  reason     String
+  occurredAt DateTime
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+
+  @@index([moduleKey, userId])
+  @@index([moduleKey, createdAt])
+  @@index([userId])
 }

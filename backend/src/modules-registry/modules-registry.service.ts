@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -70,18 +70,66 @@ export class ModulesRegistryService {
 
   /**
    * Применяет событие начисления баллов от включённого модуля к сводной
-   * статистике участника (ТЗ гл. 3.6 — единая сводная статистика).
-   * Модуль обязан быть включён в реестре, иначе событие отклоняется.
+   * статистике участника (ТЗ гл. 3.6 — единая сводная статистика) И
+   * записывает его в журнал (StatEvent) — атомарно, в переданной
+   * транзакции. Нужна отдельно от applyStatEvent(), потому что вызывающий
+   * модуль обычно должен в этой же транзакции создать и свою запись об
+   * анти-фрод-уникальности (например, "чекпоинт X погашен участником Y") —
+   * иначе гонка двух одновременных запросов может проскочить мимо неё.
    */
-  async applyStatEvent(event: ModuleStatEvent) {
-    const moduleDef = await this.prisma.moduleDefinition.findUnique({ where: { key: event.moduleKey } });
+  async applyStatEventWithinTransaction(tx: Prisma.TransactionClient, event: ModuleStatEvent) {
+    const moduleDef = await tx.moduleDefinition.findUnique({ where: { key: event.moduleKey } });
     if (!moduleDef || !moduleDef.isEnabled) {
       throw new NotFoundException(`Модуль "${event.moduleKey}" не найден или выключен`);
     }
 
-    return this.prisma.user.update({
+    const statEvent = await tx.statEvent.create({
+      data: {
+        moduleKey: event.moduleKey,
+        userId: event.userId,
+        points: event.points,
+        reason: event.reason,
+        occurredAt: event.occurredAt,
+        metadata: event.metadata ? (event.metadata as Prisma.InputJsonValue) : undefined,
+      },
+    });
+    const user = await tx.user.update({
       where: { id: event.userId },
       data: { pointsTotal: { increment: event.points } },
     });
+
+    return { statEvent, user };
+  }
+
+  async applyStatEvent(event: ModuleStatEvent) {
+    return this.prisma.$transaction((tx) => this.applyStatEventWithinTransaction(tx, event));
+  }
+
+  /** Модуль включён? Переиспользуемая проверка для эндпоинтов самих модулей. */
+  async assertEnabled(key: string) {
+    const moduleDef = await this.prisma.moduleDefinition.findUnique({ where: { key } });
+    if (!moduleDef || !moduleDef.isEnabled) {
+      throw new ForbiddenException(`Модуль "${key}" сейчас недоступен`);
+    }
+    return moduleDef;
+  }
+
+  /** Топ участников по баллам, начисленным конкретным модулем (за всё время). */
+  async leaderboard(key: string, limit = 20) {
+    const grouped = await this.prisma.statEvent.groupBy({
+      by: ['userId'],
+      where: { moduleKey: key },
+      _sum: { points: true },
+      orderBy: { _sum: { points: 'desc' } },
+      take: limit,
+    });
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: grouped.map((g) => g.userId) } },
+      select: { id: true, displayName: true, avatarUrl: true },
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+
+    return grouped.map((g) => ({ user: byId.get(g.userId), points: g._sum.points ?? 0 }));
   }
 }

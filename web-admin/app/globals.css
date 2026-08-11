@@ -54,7 +54,7 @@ th, td {
   border-bottom: 1px solid #262a33;
 }
 
-input, select, button {
+input, select, button, textarea {
   font-size: 14px;
   padding: 8px 10px;
   border-radius: 6px;

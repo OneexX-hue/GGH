@@ -1,20 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Invite, InviteType, Prisma } from '@prisma/client';
-import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { generateRandomCode } from '../common/utils/random-code.util';
 import { CreateInviteDto } from './dto/create-invite.dto';
-
-function generateInviteCode(): string {
-  // Не Base64 (избегаем визуально похожих символов 0/O, 1/l при ручной передаче кода)
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = randomBytes(10);
-  let code = '';
-  for (const byte of bytes) {
-    code += alphabet[byte % alphabet.length];
-  }
-  return `${code.slice(0, 5)}-${code.slice(5, 10)}`;
-}
 
 @Injectable()
 export class InvitesService {
@@ -31,11 +20,11 @@ export class InvitesService {
       throw new BadRequestException('personalContact обязателен для PERSONAL инвайта');
     }
 
-    let code = generateInviteCode();
+    let code = generateRandomCode(2, 5);
     // Крайне маловероятная коллизия — на всякий случай перегенерировать один раз.
     const existing = await this.prisma.invite.findUnique({ where: { code } });
     if (existing) {
-      code = generateInviteCode();
+      code = generateRandomCode(2, 5);
     }
 
     const invite = await this.prisma.invite.create({

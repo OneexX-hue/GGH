@@ -88,6 +88,19 @@ async function main() {
     },
   });
 
+  // Реестр игрового модуля "авто-квест" (Этап 2) — выключен по умолчанию,
+  // включение остаётся осознанным admin-действием через web-admin /modules.
+  await prisma.moduleDefinition.upsert({
+    where: { key: 'auto-quest' },
+    update: {},
+    create: {
+      key: 'auto-quest',
+      name: 'Авто-квест',
+      description: 'Прохождение чекпоинтов по секретным кодам, баллы за прохождение',
+      isEnabled: false,
+    },
+  });
+
   console.log('Seed complete. Test owner: test-owner@carclub.local / TEST-owner-password-123');
   console.log('Test invite code: TEST-INVITE-0001');
 }

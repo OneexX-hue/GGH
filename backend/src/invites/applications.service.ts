@@ -1,19 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ApplicationStatus, InviteType } from '@prisma/client';
-import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { generateRandomCode } from '../common/utils/random-code.util';
 import { CreateApplicationDto } from './dto/create-application.dto';
-
-function generateInviteCode(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = randomBytes(10);
-  let code = '';
-  for (const byte of bytes) {
-    code += alphabet[byte % alphabet.length];
-  }
-  return `${code.slice(0, 5)}-${code.slice(5, 10)}`;
-}
 
 // Заявки на вступление без инвайт-кода (ТЗ гл. 2.1) — требуют модерации
 // администратором перед выдачей доступа.
@@ -68,7 +58,7 @@ export class ApplicationsService {
     if (decision === 'APPROVED') {
       const invite = await this.prisma.invite.create({
         data: {
-          code: generateInviteCode(),
+          code: generateRandomCode(2, 5),
           type: InviteType.PERSONAL,
           personalContact: application.contact,
           createdByUserId: actorUserId,
