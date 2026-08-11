@@ -230,6 +230,32 @@ export class ChatBridgeService {
     }
   }
 
+  /**
+   * Best-effort (как и setUserActive): публикация системного сообщения от
+   * имени администратора (например, объявление о погашении чекпоинта
+   * квеста, ТЗ гл. 3.6). Не должна ронять вызывающий флоу, если
+   * Rocket.Chat недоступен/не настроен или комната не указана.
+   */
+  async postSystemMessage(roomId: string, text: string): Promise<void> {
+    if (!this.isConfigured()) {
+      this.logger.warn(`Rocket.Chat не настроен — пропускаю публикацию сообщения в ${roomId}`);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/chat.postMessage`, {
+        method: 'POST',
+        headers: this.adminHeaders(),
+        body: JSON.stringify({ roomId, text }),
+      });
+      if (!response.ok) {
+        throw new Error(`Rocket.Chat chat.postMessage вернул ${response.status}`);
+      }
+    } catch (error) {
+      this.logger.error(`Не удалось опубликовать сообщение в Rocket.Chat: ${(error as Error).message}`);
+    }
+  }
+
   private assertConfigured(): void {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('Модерация чата недоступна: Rocket.Chat не сконфигурирован');

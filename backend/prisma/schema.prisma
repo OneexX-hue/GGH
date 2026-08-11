@@ -47,6 +47,8 @@ model User {
   uploadedMedia         ChatMedia[]           @relation("MediaUploadedBy")
   mediaAccessLogEntries MediaAccessLog[]      @relation("MediaViewer")
   statEvents            StatEvent[]           @relation("StatEventUser")
+  createdQuests         Quest[]               @relation("QuestCreatedBy")
+  questRedemptions      QuestCheckpointRedemption[] @relation("QuestRedemptions")
 
   @@index([status])
 }
@@ -267,5 +269,54 @@ model StatEvent {
 
   @@index([moduleKey, userId])
   @@index([moduleKey, createdAt])
+  @@index([userId])
+}
+
+// --- Модуль "Авто-квест" (Этап 2, backend/src/modules/auto-quest/) --------
+// Прагматичное упрощение MVP (см. docs/DECISIONS.md, "Игровые модули —
+// физическое размещение кода"): таблицы в той же Postgres, с явным
+// префиксом Quest*, без прямых связей из ядра кроме ссылок на
+// User/ModuleDefinition. Физическое разделение БД — Этап 4.
+model Quest {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean   @default(true) // ручное завершение организатором, отдельно от isEnabled модуля
+  createdByUserId String
+  createdBy       User      @relation("QuestCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  checkpoints QuestCheckpoint[]
+}
+
+model QuestCheckpoint {
+  id          String   @id @default(uuid())
+  questId     String
+  quest       Quest    @relation(fields: [questId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  code        String   // секретный код на физическом чекпоинте — plaintext, как Invite.code
+  points      Int
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  redemptions QuestCheckpointRedemption[]
+
+  @@unique([questId, code])
+}
+
+model QuestCheckpointRedemption {
+  id           String          @id @default(uuid())
+  checkpointId String
+  checkpoint   QuestCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User            @relation("QuestRedemptions", fields: [userId], references: [id])
+  statEventId  String?         @unique
+  redeemedAt   DateTime        @default(now())
+
+  @@unique([checkpointId, userId]) // анти-фрод: одно начисление на пару чекпоинт-участник
   @@index([userId])
 }

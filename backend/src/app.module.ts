@@ -11,6 +11,7 @@ import { RolesModule } from './roles/roles.module';
 import { ModulesRegistryModule } from './modules-registry/modules-registry.module';
 import { ChatBridgeModule } from './chat-bridge/chat-bridge.module';
 import { MediaModule } from './media/media.module';
+import { AutoQuestModule } from './modules/auto-quest/auto-quest.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MediaModule } from './media/media.module';
     ModulesRegistryModule,
     ChatBridgeModule,
     MediaModule,
+    AutoQuestModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
