@@ -16,6 +16,7 @@ export function NavBar() {
           <Link href="/applications">Заявки</Link>
           <Link href="/roles">Роли</Link>
           <Link href="/modules">Модули</Link>
+          <Link href="/quests">Квесты</Link>
           <Link href="/moderation">Модерация</Link>
           <Link href="/security">Безопасность</Link>
           <button onClick={logout} style={{ marginTop: 16 }}>
