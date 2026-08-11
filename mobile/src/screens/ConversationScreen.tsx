@@ -1,17 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, IconButton, HelperText, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, IconButton, HelperText, ActivityIndicator, Menu } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
 import { useAuth } from '../auth-context';
+import { apiFetch } from '../api';
 import type { RCMessage } from '../rocketchat/types';
 import type { RootStackParamList } from '../navigation';
 import { uploadMedia, MediaApiError } from '../media/media-client';
 import { decodeMediaMarker, encodeMediaMarker } from '../media/marker';
+import { decodeTtlMarker, encodeTtlMarker } from '../media/ttl-marker';
 import { ProtectedMediaViewer } from '../media/ProtectedMediaViewer';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Conversation'>;
+
+const TTL_PRESETS: { label: string; seconds: number | null }[] = [
+  { label: 'Выкл.', seconds: null },
+  { label: '10 секунд', seconds: 10 },
+  { label: '1 минута', seconds: 60 },
+  { label: '1 час', seconds: 60 * 60 },
+  { label: '24 часа', seconds: 24 * 60 * 60 },
+];
+
+function formatRemaining(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}с`;
+  const totalMinutes = Math.ceil(totalSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}м`;
+  return `${Math.ceil(totalMinutes / 60)}ч`;
+}
 
 export function ConversationScreen({ route, navigation }: Props) {
   const { roomId, roomType, title } = route.params;
@@ -21,6 +39,9 @@ export function ConversationScreen({ route, navigation }: Props) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [ttlSeconds, setTtlSeconds] = useState<number | null>(null);
+  const [ttlMenuVisible, setTtlMenuVisible] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const seenIds = useRef(new Set<string>());
 
   useLayoutEffect(() => {
@@ -47,16 +68,44 @@ export function ConversationScreen({ route, navigation }: Props) {
     });
   }, [realtimeClient, roomId]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  async function scheduleExpiry(msgId: string, expiresAt: string) {
+    if (!authToken) return;
+    try {
+      await apiFetch(`/chat-bridge/messages/${roomId}/${msgId}/expire-at`, {
+        method: 'POST',
+        token: authToken,
+        body: { expiresAt },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось включить самоуничтожение сообщения');
+    }
+  }
+
+  async function sendBody(body: string) {
+    if (!restClient) return;
+    const expiresAt = ttlSeconds ? new Date(Date.now() + ttlSeconds * 1000).toISOString() : null;
+    const wire = expiresAt ? encodeTtlMarker({ expiresAt, body }) : body;
+    const sent = await restClient.postMessage(roomId, wire);
+    if (!seenIds.current.has(sent._id)) {
+      seenIds.current.add(sent._id);
+      setMessages((prev) => [sent, ...prev]);
+    }
+    if (expiresAt) {
+      await scheduleExpiry(sent._id, expiresAt);
+    }
+  }
+
   async function onSend() {
-    if (!restClient || !draft.trim()) return;
+    if (!draft.trim()) return;
     const text = draft.trim();
     setDraft('');
     try {
-      const sent = await restClient.postMessage(roomId, text);
-      if (!seenIds.current.has(sent._id)) {
-        seenIds.current.add(sent._id);
-        setMessages((prev) => [sent, ...prev]);
-      }
+      await sendBody(text);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение');
     }
@@ -82,11 +131,7 @@ export function ConversationScreen({ route, navigation }: Props) {
     try {
       const upload = await uploadMedia(asset.uri, asset.mimeType ?? 'image/jpeg', asset.fileName ?? 'photo.jpg', authToken);
       const marker = encodeMediaMarker({ mediaId: upload.mediaId, kind: upload.kind });
-      const sent = await restClient.postMessage(roomId, marker);
-      if (!seenIds.current.has(sent._id)) {
-        seenIds.current.add(sent._id);
-        setMessages((prev) => [sent, ...prev]);
-      }
+      await sendBody(marker);
     } catch (err) {
       setError(err instanceof MediaApiError || err instanceof Error ? err.message : 'Не удалось отправить фото');
     } finally {
@@ -108,7 +153,12 @@ export function ConversationScreen({ route, navigation }: Props) {
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => {
           const mine = item.u._id === currentRocketChatUserId;
-          const mediaMarker = decodeMediaMarker(item.msg);
+          const ttl = decodeTtlMarker(item.msg);
+          const remainingMs = ttl ? new Date(ttl.expiresAt).getTime() - now : null;
+          const expired = ttl !== null && remainingMs !== null && remainingMs <= 0;
+          const contentText = ttl ? ttl.body : item.msg;
+          const mediaMarker = expired ? null : decodeMediaMarker(contentText);
+
           return (
             <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : undefined]}>
               <View
@@ -118,10 +168,17 @@ export function ConversationScreen({ route, navigation }: Props) {
                 ]}
               >
                 {!mine && <Text style={styles.author}>{item.u.name ?? item.u.username}</Text>}
-                {mediaMarker ? (
+                {expired ? (
+                  <Text style={mine ? styles.textMine : styles.textTheirs}>🔥 Сообщение исчезло</Text>
+                ) : mediaMarker ? (
                   <ProtectedMediaViewer mediaId={mediaMarker.mediaId} kind={mediaMarker.kind} />
                 ) : (
-                  <Text style={mine ? styles.textMine : styles.textTheirs}>{item.msg}</Text>
+                  <Text style={mine ? styles.textMine : styles.textTheirs}>{contentText}</Text>
+                )}
+                {ttl && !expired && remainingMs !== null && (
+                  <Text style={[styles.ttlBadge, mine ? styles.ttlBadgeMine : styles.ttlBadgeTheirs]}>
+                    ⏱️ {formatRemaining(remainingMs)}
+                  </Text>
                 )}
               </View>
             </View>
@@ -134,6 +191,29 @@ export function ConversationScreen({ route, navigation }: Props) {
         ) : (
           <IconButton icon="camera-outline" mode="outlined" onPress={onPickPhoto} style={styles.attachButton} />
         )}
+        <Menu
+          visible={ttlMenuVisible}
+          onDismiss={() => setTtlMenuVisible(false)}
+          anchor={
+            <IconButton
+              icon={ttlSeconds ? 'timer-outline' : 'timer-off-outline'}
+              mode="outlined"
+              onPress={() => setTtlMenuVisible(true)}
+              style={styles.attachButton}
+            />
+          }
+        >
+          {TTL_PRESETS.map((preset) => (
+            <Menu.Item
+              key={preset.label}
+              title={preset.label}
+              onPress={() => {
+                setTtlSeconds(preset.seconds);
+                setTtlMenuVisible(false);
+              }}
+            />
+          ))}
+        </Menu>
         <TextInput
           mode="outlined"
           value={draft}
@@ -161,6 +241,9 @@ const styles = StyleSheet.create({
   author: { color: '#e8a33d', fontSize: 12, marginBottom: 2 },
   textMine: { color: '#1a1206', fontSize: 15 },
   textTheirs: { color: '#e8e6e1', fontSize: 15 },
+  ttlBadge: { fontSize: 10.5, marginTop: 4, opacity: 0.75 },
+  ttlBadgeMine: { color: '#1a1206' },
+  ttlBadgeTheirs: { color: '#9a9691' },
   inputRow: {
     flexDirection: 'row',
     padding: 8,

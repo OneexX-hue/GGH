@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InvitesService } from '../invites/invites.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { ChatBridgeService } from '../chat-bridge/chat-bridge.service';
+import { generateChatAlias } from '../common/utils/alias.util';
 import { TotpService } from './totp.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -43,12 +44,18 @@ export class AuthService {
     const user = await this.prisma.$transaction(async (tx) => {
       const invite = await this.invitesService.reserveWithinTransaction(tx, dto.inviteCode, contact);
 
+      let chatAlias = generateChatAlias();
+      for (let attempt = 0; attempt < 5 && (await tx.user.findUnique({ where: { chatAlias } })); attempt += 1) {
+        chatAlias = generateChatAlias();
+      }
+
       const createdUser = await tx.user.create({
         data: {
           email: dto.email,
           phone: dto.phone,
           passwordHash,
           displayName: dto.displayName,
+          chatAlias,
           status: 'ACTIVE',
         },
       });
@@ -76,9 +83,12 @@ export class AuthService {
     });
 
     // Best-effort, не блокирует регистрацию, если Rocket.Chat ещё не поднят.
+    // displayName сюда намеренно НЕ передаётся — Rocket.Chat хранит
+    // псевдоним (chatAlias), а не реальное имя, см. docs/DECISIONS.md
+    // "Псевдонимная личность в чате".
     void this.chatBridge.provisionUser({
       userId: user.id,
-      displayName: user.displayName,
+      displayName: user.chatAlias!,
       email: user.email ?? undefined,
     });
 

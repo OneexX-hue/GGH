@@ -34,6 +34,7 @@ model User {
   twoFactorSecret   String? // otplib TOTP secret, обязателен для админ-ролей до включения 2FA
 
   rocketChatUserId  String? @unique // связка с профилем в Rocket.Chat (chat-bridge)
+  chatAlias         String? @unique // псевдоним, который RC показывает как имя профиля вместо displayName (см. DECISIONS.md)
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -361,4 +362,20 @@ model HideAndSeekFind {
 
   @@unique([roundId, seekerUserId]) // анти-фрод: один seeker получает баллы за раунд один раз
   @@index([seekerUserId])
+}
+
+// --- Самоуничтожающиеся сообщения (docs/DECISIONS.md "Псевдонимная
+// личность в чате и самоуничтожающиеся сообщения") -----------------------
+// Техническая запись для отложенного удаления, не журнал: Rocket.Chat —
+// источник истины по самим сообщениям, здесь только expiresAt для
+// MessageExpiryService (chat-bridge), которая реально вызывает
+// ChatBridgeService.deleteMessage по истечении срока.
+model ExpiringMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  msgId     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

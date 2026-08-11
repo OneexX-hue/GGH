@@ -1,6 +1,7 @@
-import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { rocketChatUsernameFor } from './rocketchat-username.util';
 
 export interface ProvisionChatUserInput {
@@ -63,6 +64,7 @@ export class ChatBridgeService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly auditLog: AuditLogService,
   ) {
     this.baseUrl = this.config.get<string>('ROCKETCHAT_BASE_URL');
     this.wsUrl = this.config.get<string>('ROCKETCHAT_WS_URL');
@@ -206,6 +208,40 @@ export class ChatBridgeService {
   }
 
   /**
+   * Модерация «забанить отправителя» без раскрытия оператору реальной
+   * личности (ТЗ + docs/DECISIONS.md "Псевдонимная личность в чате"):
+   * клиент уже знает RC id отправителя из истории комнаты (Rocket.Chat
+   * там показывает псевдоним, не реальное имя) — сюда передаётся только
+   * этот id, реальное имя никогда не запрашивается и не возвращается.
+   * Переиспользует ту же логику бана, что и UsersService.ban (тот же
+   * тип записи в AuditLog), не саму функцию — модуль users импортирует
+   * chat-bridge, обратный импорт создал бы циклическую зависимость.
+   */
+  async banSenderOfMessage(
+    rocketChatUserId: string,
+    actorUserId: string,
+    context: { roomId: string; msgId: string },
+    ipAddress?: string,
+  ): Promise<void> {
+    const targetUser = await this.prisma.user.findFirst({ where: { rocketChatUserId } });
+    if (!targetUser) {
+      throw new NotFoundException('Не удалось определить отправителя сообщения');
+    }
+
+    await this.prisma.user.update({ where: { id: targetUser.id }, data: { status: 'BANNED' } });
+    await this.setUserActive(rocketChatUserId, false);
+
+    await this.auditLog.record({
+      actorUserId,
+      action: 'user.ban',
+      targetType: 'User',
+      targetId: targetUser.id,
+      metadata: { via: 'moderation.ban-sender', ...context },
+      ipAddress,
+    });
+  }
+
+  /**
    * Best-effort (как и provisionUser): используется из UsersService.ban,
    * не должен блокировать бан в ядре, если Rocket.Chat недоступен/не
    * настроен.
@@ -254,6 +290,20 @@ export class ChatBridgeService {
     } catch (error) {
       this.logger.error(`Не удалось опубликовать сообщение в Rocket.Chat: ${(error as Error).message}`);
     }
+  }
+
+  /**
+   * Самоуничтожающиеся сообщения (docs/DECISIONS.md): записывает срок
+   * жизни сообщения для MessageExpiryService. Не best-effort — если
+   * запись не удалась, вызывающий должен узнать об этом (500), иначе
+   * пользователь решит, что сообщение исчезнет, а оно останется навсегда.
+   */
+  async scheduleExpiry(roomId: string, msgId: string, expiresAt: Date): Promise<void> {
+    await this.prisma.expiringMessage.upsert({
+      where: { msgId },
+      create: { roomId, msgId, expiresAt },
+      update: { expiresAt },
+    });
   }
 
   private assertConfigured(): void {
