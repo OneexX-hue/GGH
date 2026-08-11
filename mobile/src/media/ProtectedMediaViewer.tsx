@@ -6,6 +6,7 @@ import { useAuth } from '../auth-context';
 import { getMediaAccessToken, mediaContentUrl, reportMediaAccessEvent } from './media-client';
 import type { MediaKind } from './types';
 import { colors } from '../theme';
+import { Icon } from '../components/Icon';
 
 interface Props {
   mediaId: string;
@@ -94,7 +95,8 @@ export function ProtectedMediaViewer({ mediaId, kind }: Props) {
   // но не такой же защищённый просмотр, как для фото.
   return (
     <Pressable style={styles.videoBox} onPress={() => Linking.openURL(contentUrl)}>
-      <Text style={styles.videoLabel}>▶ Видео — открыть</Text>
+      <Icon name="video" size={22} color={colors.primary} />
+      <Text style={styles.videoLabel}>Видео — открыть</Text>
     </Pressable>
   );
 }
@@ -116,6 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
   },
   videoLabel: { color: colors.primary, fontWeight: '600' },
   error: { color: colors.error, padding: 8, textAlign: 'center' },

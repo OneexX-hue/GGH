@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
 import type { RCSubscription } from '../rocketchat/types';
 import type { RootStackParamList } from '../navigation';
+import { Icon } from '../components/Icon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
@@ -48,10 +49,16 @@ export function ChatListScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <Appbar.Header elevated>
-        <Appbar.Content title="💬 Чаты" />
-        <Appbar.Action icon="plus-circle-outline" onPress={() => navigation.navigate('NewChat')} />
+        <Appbar.Content title="Чаты" />
+        <Appbar.Action
+          icon={(props) => <Icon name="plus" size={props.size * 0.75} color={props.color} />}
+          onPress={() => navigation.navigate('NewChat')}
+        />
         <Appbar.Action icon="map-marker-path" onPress={() => navigation.navigate('Quests')} />
-        <Appbar.Action icon="incognito" onPress={() => navigation.navigate('HideAndSeek')} />
+        <Appbar.Action
+          icon={(props) => <Icon name="mask" size={props.size * 0.75} color={props.color} />}
+          onPress={() => navigation.navigate('HideAndSeek')}
+        />
         <Appbar.Action icon="account-circle-outline" onPress={() => navigation.navigate('Profile')} />
       </Appbar.Header>
       {loadError && <Text style={styles.error}>⚠️ {loadError}</Text>}
@@ -99,11 +106,11 @@ function initials(name: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0b' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0a0a0b', gap: 12 },
+  container: { flex: 1, backgroundColor: '#05090d' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#05090d', gap: 12 },
   row: { paddingHorizontal: 16, alignItems: 'center' },
   badge: { alignSelf: 'center' },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  dim: { color: '#87878a', textAlign: 'center', marginTop: 8 },
-  error: { color: '#d97a72', textAlign: 'center', marginVertical: 8 },
+  dim: { color: '#7f8993', textAlign: 'center', marginTop: 8 },
+  error: { color: '#e45f54', textAlign: 'center', marginVertical: 8 },
 });

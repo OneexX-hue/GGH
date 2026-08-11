@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { Text, TextInput, Button, Switch, HelperText, Chip, Divider } from 'react-native-paper';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
+import { Icon } from '../components/Icon';
 
 interface Me {
   id: string;
@@ -158,8 +159,14 @@ export function ProfileScreen() {
       )}
       ListEmptyComponent={<Text style={styles.dim}>Пока нет добавленных автомобилей</Text>}
       ListFooterComponent={
-        <Button mode="text" textColor="#d97a72" onPress={() => logout()} style={styles.logoutButton}>
-          🚪 Выйти
+        <Button
+          mode="text"
+          textColor="#e45f54"
+          onPress={() => logout()}
+          style={styles.logoutButton}
+          icon={({ size, color }) => <Icon name="x" size={size * 0.75} color={color} />}
+        >
+          Выйти
         </Button>
       }
     />
@@ -167,7 +174,7 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0b' },
+  container: { flex: 1, backgroundColor: '#05090d' },
   content: { padding: 24 },
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
@@ -177,7 +184,7 @@ const styles = StyleSheet.create({
   button: { borderRadius: 8, marginTop: 4 },
   divider: { marginVertical: 24 },
   logoutButton: { marginTop: 24, marginBottom: 24 },
-  dim: { color: '#87878a', marginBottom: 4 },
-  vehicleRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#222225' },
-  vehicleText: { color: '#f0f0ee' },
+  dim: { color: '#7f8993', marginBottom: 4 },
+  vehicleRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.09)' },
+  vehicleText: { color: '#f2f5f7' },
 });

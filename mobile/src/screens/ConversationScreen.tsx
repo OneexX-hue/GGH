@@ -12,6 +12,8 @@ import { uploadMedia, MediaApiError } from '../media/media-client';
 import { decodeMediaMarker, encodeMediaMarker } from '../media/marker';
 import { decodeTtlMarker, encodeTtlMarker } from '../media/ttl-marker';
 import { ProtectedMediaViewer } from '../media/ProtectedMediaViewer';
+import { Icon } from '../components/Icon';
+import { FadeIn } from '../components/FadeIn';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Conversation'>;
 
@@ -160,7 +162,7 @@ export function ConversationScreen({ route, navigation }: Props) {
           const mediaMarker = expired ? null : decodeMediaMarker(contentText);
 
           return (
-            <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : undefined]}>
+            <FadeIn style={[styles.bubbleRow, mine ? styles.bubbleRowMine : undefined]}>
               <View
                 style={[
                   mediaMarker ? styles.mediaBubble : styles.bubble,
@@ -176,12 +178,17 @@ export function ConversationScreen({ route, navigation }: Props) {
                   <Text style={mine ? styles.textMine : styles.textTheirs}>{contentText}</Text>
                 )}
                 {ttl && !expired && remainingMs !== null && (
-                  <Text style={[styles.ttlBadge, mine ? styles.ttlBadgeMine : styles.ttlBadgeTheirs]}>
-                    ⏱️ {formatRemaining(remainingMs)}
-                  </Text>
+                  <View style={styles.timerRow}>
+                    <View style={styles.timerRing}>
+                      <Text style={styles.timerRingText}>{formatRemaining(remainingMs)}</Text>
+                    </View>
+                    <Text style={[styles.ttlBadge, mine ? styles.ttlBadgeMine : styles.ttlBadgeTheirs]}>
+                      исчезнет после прочтения
+                    </Text>
+                  </View>
                 )}
               </View>
-            </View>
+            </FadeIn>
           );
         }}
       />
@@ -189,14 +196,21 @@ export function ConversationScreen({ route, navigation }: Props) {
         {uploading ? (
           <ActivityIndicator size={20} style={styles.attachButton} />
         ) : (
-          <IconButton icon="camera-outline" mode="outlined" onPress={onPickPhoto} style={styles.attachButton} />
+          <IconButton
+            icon={(props) => <Icon name="paperclip" size={props.size * 0.75} color={props.color} />}
+            mode="outlined"
+            onPress={onPickPhoto}
+            style={styles.attachButton}
+          />
         )}
         <Menu
           visible={ttlMenuVisible}
           onDismiss={() => setTtlMenuVisible(false)}
           anchor={
             <IconButton
-              icon={ttlSeconds ? 'timer-outline' : 'timer-off-outline'}
+              icon={(props) => (
+                <Icon name="timer" size={props.size * 0.75} color={ttlSeconds ? '#8ab7d8' : props.color} />
+              )}
               mode="outlined"
               onPress={() => setTtlMenuVisible(true)}
               style={styles.attachButton}
@@ -223,33 +237,49 @@ export function ConversationScreen({ route, navigation }: Props) {
           style={styles.input}
           dense
         />
-        <IconButton icon="send" mode="contained" onPress={onSend} disabled={!draft.trim()} />
+        <IconButton
+          icon={(props) => <Icon name="mic" size={props.size * 0.75} color={props.color} />}
+          mode="contained"
+          onPress={onSend}
+          disabled={!draft.trim()}
+        />
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0b' },
+  container: { flex: 1, backgroundColor: '#05090d' },
   list: { flex: 1, paddingHorizontal: 12 },
   bubbleRow: { flexDirection: 'row', marginVertical: 4 },
   bubbleRowMine: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '80%', borderRadius: 14, padding: 10 },
   mediaBubble: { maxWidth: '80%', borderRadius: 14, padding: 6 },
-  bubbleMine: { backgroundColor: '#f0f0ee', alignSelf: 'flex-end' },
-  bubbleTheirs: { backgroundColor: '#131315', alignSelf: 'flex-start' },
-  author: { color: '#f0f0ee', fontSize: 12, marginBottom: 2 },
-  textMine: { color: '#0a0a0b', fontSize: 15 },
-  textTheirs: { color: '#f0f0ee', fontSize: 15 },
-  ttlBadge: { fontSize: 10.5, marginTop: 4, opacity: 0.75 },
-  ttlBadgeMine: { color: '#0a0a0b' },
-  ttlBadgeTheirs: { color: '#87878a' },
+  bubbleMine: { backgroundColor: '#0d141b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-end' },
+  bubbleTheirs: { backgroundColor: '#0d141b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-start' },
+  author: { color: '#8ab7d8', fontSize: 12, marginBottom: 2 },
+  textMine: { color: '#f2f5f7', fontSize: 15 },
+  textTheirs: { color: '#f2f5f7', fontSize: 15 },
+  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  timerRing: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerRingText: { fontSize: 9, color: '#f2f5f7', fontWeight: '700' },
+  ttlBadge: { fontSize: 10.5, opacity: 0.75, flexShrink: 1 },
+  ttlBadgeMine: { color: '#7f8993' },
+  ttlBadgeTheirs: { color: '#7f8993' },
   inputRow: {
     flexDirection: 'row',
     padding: 8,
     gap: 4,
     borderTopWidth: 1,
-    borderTopColor: '#222225',
+    borderTopColor: 'rgba(255,255,255,0.09)',
     alignItems: 'center',
   },
   input: {

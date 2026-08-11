@@ -5,6 +5,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { ApiError } from '../api';
 import type { RootStackParamList } from '../navigation';
+import { Icon } from '../components/Icon';
+import { colors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -30,9 +32,9 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text variant="displaySmall" style={styles.emoji}>
-        🏁
-      </Text>
+      <View style={styles.brandMark}>
+        <Icon name="shield-lock" size={34} color={colors.primary} />
+      </View>
       <Text variant="headlineMedium" style={styles.title}>
         CarClub
       </Text>
@@ -62,8 +64,15 @@ export function LoginScreen({ navigation }: Props) {
         style={styles.input}
       />
       {error && <HelperText type="error">⚠️ {error}</HelperText>}
-      <Button mode="contained" onPress={onSubmit} loading={submitting} disabled={submitting} style={styles.button}>
-        {submitting ? 'Входим…' : '🔑 Войти'}
+      <Button
+        mode="contained"
+        onPress={onSubmit}
+        loading={submitting}
+        disabled={submitting}
+        style={styles.button}
+        icon={({ size, color }) => <Icon name="lock" size={size * 0.75} color={color} />}
+      >
+        {submitting ? 'Входим…' : 'Войти'}
       </Button>
       <Button mode="text" onPress={() => navigation.navigate('Register')} style={styles.link}>
         Есть инвайт-код? Зарегистрироваться
@@ -73,8 +82,8 @@ export function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0a0a0b' },
-  emoji: { textAlign: 'center', marginBottom: 4 },
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#05090d' },
+  brandMark: { alignItems: 'center', marginBottom: 6 },
   title: { textAlign: 'center', marginBottom: 24, fontWeight: '700' },
   input: { marginBottom: 12 },
   button: { marginTop: 8, borderRadius: 8 },
