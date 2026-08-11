@@ -51,6 +51,9 @@ export function ChatListScreen({ navigation }: Props) {
           <Pressable onPress={() => navigation.navigate('NewChat')}>
             <Text style={styles.headerAction}>Новый чат</Text>
           </Pressable>
+          <Pressable onPress={() => navigation.navigate('Quests')}>
+            <Text style={styles.headerAction}>Квесты</Text>
+          </Pressable>
           <Pressable onPress={() => navigation.navigate('Profile')}>
             <Text style={styles.headerAction}>Профиль</Text>
           </Pressable>
