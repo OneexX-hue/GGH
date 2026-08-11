@@ -29,26 +29,34 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 360 }}>
-      <h1>Вход в админ-панель</h1>
-      <form onSubmit={onSubmit}>
-        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          <label>Email / телефон</label>
-          <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
-        </div>
-        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          <label>Пароль</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-          <label>Код 2FA (если включена)</label>
-          <input value={totpCode} onChange={(e) => setTotpCode(e.target.value)} />
-        </div>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Входим…' : 'Войти'}
-        </button>
-      </form>
+    <div className="flex min-h-[75vh] items-center justify-center">
+      <div className="card w-full max-w-sm">
+        <div className="mb-1 text-3xl">🏁</div>
+        <h1 className="page-title" style={{ marginBottom: 4 }}>
+          Вход в админ-панель
+        </h1>
+        <p className="page-subtitle" style={{ marginBottom: 20 }}>
+          CarClub Platform
+        </p>
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+            Email / телефон
+            <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+            Пароль
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+            🔐 Код 2FA (если включена)
+            <input value={totpCode} onChange={(e) => setTotpCode(e.target.value)} />
+          </label>
+          {error && <p className="error">⚠️ {error}</p>}
+          <button type="submit" disabled={submitting} className="mt-1">
+            {submitting ? 'Входим…' : '🔑 Войти'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

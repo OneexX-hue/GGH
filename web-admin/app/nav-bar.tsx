@@ -1,30 +1,47 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
+
+const NAV_ITEMS = [
+  { href: '/members', label: 'Участники', icon: '👥' },
+  { href: '/invites', label: 'Приглашения', icon: '✉️' },
+  { href: '/applications', label: 'Заявки', icon: '📝' },
+  { href: '/roles', label: 'Роли', icon: '🛡️' },
+  { href: '/modules', label: 'Модули', icon: '🧩' },
+  { href: '/quests', label: 'Квесты', icon: '🗺️' },
+  { href: '/moderation', label: 'Модерация', icon: '💬' },
+  { href: '/security', label: 'Безопасность', icon: '🔐' },
+];
 
 export function NavBar() {
   const { token, logout } = useAuth();
+  const pathname = usePathname();
 
   return (
     <nav className="nav">
-      <div style={{ fontWeight: 600, marginBottom: 16 }}>CarClub Admin</div>
+      <div className="nav-brand">
+        <span>🏁</span>
+        <span>CarClub Admin</span>
+      </div>
       {token ? (
         <>
-          <Link href="/members">Участники</Link>
-          <Link href="/invites">Приглашения</Link>
-          <Link href="/applications">Заявки</Link>
-          <Link href="/roles">Роли</Link>
-          <Link href="/modules">Модули</Link>
-          <Link href="/quests">Квесты</Link>
-          <Link href="/moderation">Модерация</Link>
-          <Link href="/security">Безопасность</Link>
-          <button onClick={logout} style={{ marginTop: 16 }}>
-            Выйти
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href} className={pathname.startsWith(item.href) ? 'active' : undefined}>
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+          <button className="btn-outline" style={{ marginTop: 18 }} onClick={logout}>
+            🚪 Выйти
           </button>
         </>
       ) : (
-        <Link href="/login">Войти</Link>
+        <Link href="/login">
+          <span>🔑</span>
+          <span>Войти</span>
+        </Link>
       )}
     </nav>
   );

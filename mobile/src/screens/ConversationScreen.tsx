@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, TextInput, IconButton, HelperText, ActivityIndicator } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
@@ -99,7 +100,7 @@ export function ConversationScreen({ route, navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <HelperText type="error" style={styles.error}>⚠️ {error}</HelperText>}
       <FlatList
         style={styles.list}
         data={messages}
@@ -120,7 +121,7 @@ export function ConversationScreen({ route, navigation }: Props) {
                 {mediaMarker ? (
                   <ProtectedMediaViewer mediaId={mediaMarker.mediaId} kind={mediaMarker.kind} />
                 ) : (
-                  <Text style={styles.text}>{item.msg}</Text>
+                  <Text style={mine ? styles.textMine : styles.textTheirs}>{item.msg}</Text>
                 )}
               </View>
             </View>
@@ -128,63 +129,50 @@ export function ConversationScreen({ route, navigation }: Props) {
         }}
       />
       <View style={styles.inputRow}>
-        <Pressable style={styles.attachButton} onPress={onPickPhoto} disabled={uploading}>
-          <Text style={styles.attachButtonText}>{uploading ? '…' : '📷'}</Text>
-        </Pressable>
+        {uploading ? (
+          <ActivityIndicator size={20} style={styles.attachButton} />
+        ) : (
+          <IconButton icon="camera-outline" mode="outlined" onPress={onPickPhoto} style={styles.attachButton} />
+        )}
         <TextInput
-          style={styles.input}
+          mode="outlined"
           value={draft}
           onChangeText={setDraft}
           placeholder="Сообщение…"
-          placeholderTextColor="#888"
           multiline
+          style={styles.input}
+          dense
         />
-        <Pressable style={styles.sendButton} onPress={onSend}>
-          <Text style={styles.sendButtonText}>Отправить</Text>
-        </Pressable>
+        <IconButton icon="send" mode="contained" onPress={onSend} disabled={!draft.trim()} />
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115' },
+  container: { flex: 1, backgroundColor: '#121316' },
   list: { flex: 1, paddingHorizontal: 12 },
   bubbleRow: { flexDirection: 'row', marginVertical: 4 },
   bubbleRowMine: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '80%', borderRadius: 12, padding: 10 },
-  mediaBubble: { maxWidth: '80%', borderRadius: 12, padding: 6 },
-  bubbleMine: { backgroundColor: '#3b82f6', alignSelf: 'flex-end' },
-  bubbleTheirs: { backgroundColor: '#1b1f27', alignSelf: 'flex-start' },
-  author: { color: '#93c5fd', fontSize: 12, marginBottom: 2 },
-  text: { color: '#fff', fontSize: 15 },
+  bubble: { maxWidth: '80%', borderRadius: 14, padding: 10 },
+  mediaBubble: { maxWidth: '80%', borderRadius: 14, padding: 6 },
+  bubbleMine: { backgroundColor: '#e8a33d', alignSelf: 'flex-end' },
+  bubbleTheirs: { backgroundColor: '#1a1c20', alignSelf: 'flex-start' },
+  author: { color: '#e8a33d', fontSize: 12, marginBottom: 2 },
+  textMine: { color: '#1a1206', fontSize: 15 },
+  textTheirs: { color: '#e8e6e1', fontSize: 15 },
   inputRow: {
     flexDirection: 'row',
-    padding: 12,
-    gap: 8,
+    padding: 8,
+    gap: 4,
     borderTopWidth: 1,
-    borderTopColor: '#1b1f27',
-    alignItems: 'flex-end',
+    borderTopColor: '#2a2d33',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 10,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
     maxHeight: 100,
   },
-  sendButton: { backgroundColor: '#3b82f6', borderRadius: 8, padding: 12 },
-  sendButtonText: { color: '#fff', fontWeight: '600' },
-  attachButton: {
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#1b1f27',
-  },
-  attachButtonText: { fontSize: 18 },
-  error: { color: '#f87171', textAlign: 'center', padding: 8 },
+  attachButton: { marginBottom: 2 },
+  error: { textAlign: 'center' },
 });

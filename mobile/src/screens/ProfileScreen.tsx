@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, Switch, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
+import { Text, TextInput, Button, Switch, HelperText, Chip, Divider } from 'react-native-paper';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
 
@@ -96,83 +97,87 @@ export function ProfileScreen() {
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
         <View>
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && <HelperText type="error">⚠️ {error}</HelperText>}
 
-          <Text style={styles.sectionTitle}>Профиль</Text>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            👤 Профиль
+          </Text>
           {me && (
-            <Text style={styles.dim}>
-              Статус: {me.status} · Баллы: {me.pointsTotal} · Роли:{' '}
-              {me.roles.map((r) => r.role.name).join(', ') || 'участник'}
-            </Text>
+            <View style={styles.chipRow}>
+              <Chip icon="star-circle-outline" compact>
+                🏆 {me.pointsTotal} баллов
+              </Chip>
+              <Chip icon="account-check-outline" compact>
+                {me.status}
+              </Chip>
+              {me.roles.length > 0 && (
+                <Chip icon="shield-star-outline" compact>
+                  {me.roles.map((r) => r.role.name).join(', ')}
+                </Chip>
+              )}
+            </View>
           )}
-          <TextInput
-            style={styles.input}
-            placeholder="Имя"
-            placeholderTextColor="#888"
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
-          <Pressable style={styles.button} onPress={onSaveProfile} disabled={saving}>
-            <Text style={styles.buttonText}>{saving ? 'Сохраняем…' : 'Сохранить'}</Text>
-          </Pressable>
+          <TextInput mode="outlined" label="Имя" value={displayName} onChangeText={setDisplayName} style={styles.input} />
+          <Button mode="contained" onPress={onSaveProfile} loading={saving} disabled={saving} style={styles.button}>
+            💾 Сохранить
+          </Button>
 
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Мои автомобили</Text>
-          <TextInput style={styles.input} placeholder="Марка" placeholderTextColor="#888" value={make} onChangeText={setMake} />
-          <TextInput style={styles.input} placeholder="Модель" placeholderTextColor="#888" value={model} onChangeText={setModel} />
+          <Divider style={styles.divider} />
+
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            🚗 Мои автомобили
+          </Text>
+          <TextInput mode="outlined" label="Марка" value={make} onChangeText={setMake} style={styles.input} />
+          <TextInput mode="outlined" label="Модель" value={model} onChangeText={setModel} style={styles.input} />
           <TextInput
-            style={styles.input}
-            placeholder="Гос. номер"
-            placeholderTextColor="#888"
+            mode="outlined"
+            label="Гос. номер"
             autoCapitalize="characters"
             value={plateNumber}
             onChangeText={setPlateNumber}
+            style={styles.input}
           />
           <View style={styles.row}>
-            <Text style={styles.dim}>Показывать номер другим участникам</Text>
+            <Text variant="bodyMedium" style={styles.switchLabel}>
+              Показывать номер другим участникам
+            </Text>
             <Switch value={isPlatePublic} onValueChange={setIsPlatePublic} />
           </View>
-          <Pressable style={styles.button} onPress={onAddVehicle}>
-            <Text style={styles.buttonText}>Добавить автомобиль</Text>
-          </Pressable>
+          <Button mode="outlined" onPress={onAddVehicle} style={styles.button}>
+            ➕ Добавить автомобиль
+          </Button>
         </View>
       }
       renderItem={({ item }) => (
         <View style={styles.vehicleRow}>
           <Text style={styles.vehicleText}>
-            {item.make} {item.model} · {item.plateNumber}
+            🚘 {item.make} {item.model} · {item.plateNumber}
             {item.isPlatePublic ? '' : ' (номер скрыт)'}
           </Text>
         </View>
       )}
       ListEmptyComponent={<Text style={styles.dim}>Пока нет добавленных автомобилей</Text>}
       ListFooterComponent={
-        <Pressable style={[styles.button, styles.logoutButton]} onPress={() => logout()}>
-          <Text style={styles.buttonText}>Выйти</Text>
-        </Pressable>
+        <Button mode="text" textColor="#e5766b" onPress={() => logout()} style={styles.logoutButton}>
+          🚪 Выйти
+        </Button>
       }
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115' },
-  content: { padding: 24, paddingTop: 56 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
-  button: { backgroundColor: '#3b82f6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 12 },
-  logoutButton: { backgroundColor: '#1b1f27', marginTop: 24, marginBottom: 24 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  dim: { color: '#888', marginBottom: 4 },
-  error: { color: '#f87171', marginBottom: 8 },
-  vehicleRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1b1f27' },
-  vehicleText: { color: '#fff' },
+  container: { flex: 1, backgroundColor: '#121316' },
+  content: { padding: 24 },
+  sectionTitle: { marginBottom: 12, fontWeight: '700' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  input: { marginBottom: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  switchLabel: { flex: 1, marginRight: 8 },
+  button: { borderRadius: 8, marginTop: 4 },
+  divider: { marginVertical: 24 },
+  logoutButton: { marginTop: 24, marginBottom: 24 },
+  dim: { color: '#9a9691', marginBottom: 4 },
+  vehicleRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2a2d33' },
+  vehicleText: { color: '#e8e6e1' },
 });

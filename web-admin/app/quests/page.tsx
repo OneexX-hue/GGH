@@ -56,39 +56,48 @@ export default function QuestsPage() {
 
   return (
     <div>
-      <h1>Квесты</h1>
-      {error && <p className="error">{error}</p>}
+      <h1 className="page-title">🗺️ Квесты</h1>
+      <p className="page-subtitle">Авто-квест — чекпоинты по секретным кодам</p>
+      {error && <p className="error">⚠️ {error}</p>}
 
-      <form onSubmit={onCreate} className="form-row">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название квеста" />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
-        <button type="submit">Создать</button>
-      </form>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <form onSubmit={onCreate} className="form-row" style={{ marginBottom: 0 }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название квеста" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
+          <button type="submit">✨ Создать</button>
+        </form>
+      </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>Статус</th>
-            <th>Чекпоинтов</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {quests.map((quest) => (
-            <tr key={quest.id}>
-              <td>{quest.title}</td>
-              <td>
-                <span className="badge">{quest.isActive ? 'активен' : 'завершён'}</span>
-              </td>
-              <td>{quest._count.checkpoints}</td>
-              <td>
-                <Link href={`/quests/${quest.id}`}>Открыть</Link>
-              </td>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Название</th>
+              <th>Статус</th>
+              <th>Чекпоинтов</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {quests.map((quest) => (
+              <tr key={quest.id}>
+                <td>{quest.title}</td>
+                <td>
+                  <span className={quest.isActive ? 'badge badge-success' : 'badge'}>
+                    {quest.isActive ? '🟢 активен' : '🏁 завершён'}
+                  </span>
+                </td>
+                <td>📍 {quest._count.checkpoints}</td>
+                <td>
+                  <Link href={`/quests/${quest.id}`} className="btn-outline no-underline">
+                    Открыть →
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

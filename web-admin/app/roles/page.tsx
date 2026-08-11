@@ -66,55 +66,56 @@ export default function RolesPage() {
 
   return (
     <div>
-      <h1>Роли</h1>
-      {error && <p className="error">{error}</p>}
+      <h1 className="page-title">🛡️ Роли</h1>
+      <p className="page-subtitle">Права доступа и их назначение участникам</p>
+      {error && <p className="error">⚠️ {error}</p>}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Имя</th>
-            <th>Системная</th>
-            <th>Права</th>
-          </tr>
-        </thead>
-        <tbody>
-          {roles.map((r) => (
-            <tr key={r.id}>
-              <td>{r.name}</td>
-              <td>{r.isSystem ? 'да' : 'нет'}</td>
-              <td>{r.permissions.map((p) => p.permission.key).join(', ') || '—'}</td>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Системная</th>
+              <th>Права</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {roles.map((r) => (
+              <tr key={r.id}>
+                <td>{r.name}</td>
+                <td>{r.isSystem ? <span className="badge badge-primary">да</span> : <span className="badge">нет</span>}</td>
+                <td className="text-muted-foreground">
+                  {r.permissions.map((p) => p.permission.key).join(', ') || '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <h2 style={{ marginTop: 32 }}>Создать роль</h2>
-      <form onSubmit={onCreateRole} className="form-row">
-        <input
-          value={newRoleName}
-          onChange={(e) => setNewRoleName(e.target.value)}
-          placeholder="Название роли"
-        />
-        <button type="submit">Создать</button>
-      </form>
+      <h2 className="section-title">➕ Создать роль</h2>
+      <div className="card">
+        <form onSubmit={onCreateRole} className="form-row" style={{ marginBottom: 0 }}>
+          <input value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} placeholder="Название роли" />
+          <button type="submit">Создать</button>
+        </form>
+      </div>
 
-      <h2 style={{ marginTop: 32 }}>Назначить роль участнику</h2>
-      <form onSubmit={onAssign} className="form-row">
-        <input
-          value={assignUserId}
-          onChange={(e) => setAssignUserId(e.target.value)}
-          placeholder="ID участника"
-        />
-        <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)}>
-          <option value="">Выберите роль</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit">Назначить</button>
-      </form>
+      <h2 className="section-title">🎯 Назначить роль участнику</h2>
+      <div className="card">
+        <form onSubmit={onAssign} className="form-row" style={{ marginBottom: 0 }}>
+          <input value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} placeholder="ID участника" />
+          <select value={assignRoleId} onChange={(e) => setAssignRoleId(e.target.value)}>
+            <option value="">Выберите роль</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Назначить</button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text, TextInput, Button, HelperText } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { ApiError } from '../api';
@@ -29,57 +30,53 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>CarClub</Text>
+      <Text variant="displaySmall" style={styles.emoji}>
+        🏁
+      </Text>
+      <Text variant="headlineMedium" style={styles.title}>
+        CarClub
+      </Text>
       <TextInput
-        style={styles.input}
-        placeholder="Email или телефон"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="Email или телефон"
         autoCapitalize="none"
         value={identifier}
         onChangeText={setIdentifier}
+        style={styles.input}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Пароль"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="Пароль"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        style={styles.input}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Код 2FA (если включена)"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="🔐 Код 2FA (если включена)"
         keyboardType="number-pad"
         maxLength={6}
         value={totpCode}
         onChangeText={setTotpCode}
+        style={styles.input}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? 'Входим…' : 'Войти'}</Text>
-      </Pressable>
-      <Pressable onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.link}>Есть инвайт-код? Зарегистрироваться</Text>
-      </Pressable>
+      {error && <HelperText type="error">⚠️ {error}</HelperText>}
+      <Button mode="contained" onPress={onSubmit} loading={submitting} disabled={submitting} style={styles.button}>
+        {submitting ? 'Входим…' : '🔑 Войти'}
+      </Button>
+      <Button mode="text" onPress={() => navigation.navigate('Register')} style={styles.link}>
+        Есть инвайт-код? Зарегистрироваться
+      </Button>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0f1115' },
-  title: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 24, textAlign: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
-  },
-  button: { backgroundColor: '#3b82f6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  link: { color: '#93c5fd', textAlign: 'center', marginTop: 16 },
-  error: { color: '#f87171', marginBottom: 8 },
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#121316' },
+  emoji: { textAlign: 'center', marginBottom: 4 },
+  title: { textAlign: 'center', marginBottom: 24, fontWeight: '700' },
+  input: { marginBottom: 12 },
+  button: { marginTop: 8, borderRadius: 8 },
+  link: { marginTop: 8 },
 });

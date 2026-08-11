@@ -16,6 +16,12 @@ interface Application {
 
 type StatusFilter = Application['status'] | '';
 
+const STATUS_BADGE: Record<Application['status'], string> = {
+  PENDING: 'badge badge-primary',
+  APPROVED: 'badge badge-success',
+  REJECTED: 'badge badge-danger',
+};
+
 export default function ApplicationsPage() {
   const { token, loading } = useAuth();
   const router = useRouter();
@@ -65,11 +71,13 @@ export default function ApplicationsPage() {
 
   return (
     <div>
-      <h1>Заявки на вступление</h1>
-      {error && <p className="error">{error}</p>}
+      <h1 className="page-title">📝 Заявки на вступление</h1>
+      <p className="page-subtitle">Заявки без инвайт-кода — на рассмотрении администратора</p>
+
+      {error && <p className="error">⚠️ {error}</p>}
       {issuedCode && (
-        <p>
-          Заявка «{issuedCode.applicantName}» одобрена — выдан инвайт-код: <code>{issuedCode.code}</code>
+        <p className="notice">
+          ✅ Заявка «{issuedCode.applicantName}» одобрена — выдан инвайт-код: <code>{issuedCode.code}</code>
         </p>
       )}
 
@@ -82,37 +90,41 @@ export default function ApplicationsPage() {
         </select>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Имя</th>
-            <th>Контакт</th>
-            <th>Статус</th>
-            <th>Подана</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {applications.map((app) => (
-            <tr key={app.id}>
-              <td>{app.applicantName}</td>
-              <td>{app.contact}</td>
-              <td>
-                <span className="badge">{app.status}</span>
-              </td>
-              <td>{new Date(app.createdAt).toLocaleString()}</td>
-              <td>
-                {app.status === 'PENDING' && (
-                  <>
-                    <button onClick={() => onReview(app, 'APPROVED')}>Одобрить</button>{' '}
-                    <button onClick={() => onReview(app, 'REJECTED')}>Отклонить</button>
-                  </>
-                )}
-              </td>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Контакт</th>
+              <th>Статус</th>
+              <th>Подана</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {applications.map((app) => (
+              <tr key={app.id}>
+                <td>{app.applicantName}</td>
+                <td className="text-muted-foreground">{app.contact}</td>
+                <td>
+                  <span className={STATUS_BADGE[app.status]}>{app.status}</span>
+                </td>
+                <td className="text-muted-foreground">{new Date(app.createdAt).toLocaleString()}</td>
+                <td>
+                  {app.status === 'PENDING' && (
+                    <span className="inline-flex gap-2">
+                      <button onClick={() => onReview(app, 'APPROVED')}>✅ Одобрить</button>
+                      <button className="btn-danger" onClick={() => onReview(app, 'REJECTED')}>
+                        ❌ Отклонить
+                      </button>
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

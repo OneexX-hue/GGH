@@ -88,52 +88,66 @@ export default function ModulesPage() {
 
   return (
     <div>
-      <h1>Модули</h1>
-      {error && <p className="error">{error}</p>}
+      <h1 className="page-title">🧩 Модули</h1>
+      <p className="page-subtitle">Реестр игровых модулей — включение/выключение сразу блокирует их эндпоинты</p>
+      {error && <p className="error">⚠️ {error}</p>}
 
-      <form onSubmit={onRegister} className="form-row">
-        <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Ключ (например auto-quest)" />
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
-        <button type="submit">Зарегистрировать</button>
-      </form>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <form onSubmit={onRegister} className="form-row" style={{ marginBottom: 0 }}>
+          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Ключ (например auto-quest)" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" />
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
+          <button type="submit">✨ Зарегистрировать</button>
+        </form>
+      </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Ключ</th>
-            <th>Название</th>
-            <th>Статус</th>
-            <th>Конфиг (JSON)</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {modules.map((mod) => (
-            <tr key={mod.key}>
-              <td>
-                <code>{mod.key}</code>
-              </td>
-              <td>{mod.name}</td>
-              <td>
-                <span className="badge">{mod.isEnabled ? 'включён' : 'выключен'}</span>
-              </td>
-              <td>
-                <textarea
-                  rows={3}
-                  style={{ width: 260, fontFamily: 'monospace' }}
-                  value={configDrafts[mod.key] ?? '{}'}
-                  onChange={(e) => setConfigDrafts((prev) => ({ ...prev, [mod.key]: e.target.value }))}
-                />
-              </td>
-              <td>
-                <button onClick={() => onToggleEnabled(mod)}>{mod.isEnabled ? 'Выключить' : 'Включить'}</button>{' '}
-                <button onClick={() => onSaveConfig(mod)}>Сохранить конфиг</button>
-              </td>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Ключ</th>
+              <th>Название</th>
+              <th>Статус</th>
+              <th>Конфиг (JSON)</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {modules.map((mod) => (
+              <tr key={mod.key}>
+                <td>
+                  <code>{mod.key}</code>
+                </td>
+                <td>{mod.name}</td>
+                <td>
+                  <span className={mod.isEnabled ? 'badge badge-success' : 'badge'}>
+                    {mod.isEnabled ? '🟢 включён' : '⚪ выключен'}
+                  </span>
+                </td>
+                <td>
+                  <textarea
+                    rows={3}
+                    className="font-mono"
+                    style={{ width: 260 }}
+                    value={configDrafts[mod.key] ?? '{}'}
+                    onChange={(e) => setConfigDrafts((prev) => ({ ...prev, [mod.key]: e.target.value }))}
+                  />
+                </td>
+                <td>
+                  <span className="inline-flex flex-col gap-2">
+                    <button className={mod.isEnabled ? 'btn-outline' : undefined} onClick={() => onToggleEnabled(mod)}>
+                      {mod.isEnabled ? '⏸️ Выключить' : '▶️ Включить'}
+                    </button>
+                    <button className="btn-outline" onClick={() => onSaveConfig(mod)}>
+                      💾 Сохранить конфиг
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

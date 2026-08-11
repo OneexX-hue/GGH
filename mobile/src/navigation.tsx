@@ -9,6 +9,7 @@ import { ConversationScreen } from './screens/ConversationScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { QuestListScreen } from './screens/QuestListScreen';
 import { QuestDetailScreen } from './screens/QuestDetailScreen';
+import { navigationTheme } from './theme';
 import type { RoomType } from './rocketchat/types';
 
 interface QuestCheckpointParam {
@@ -39,15 +40,15 @@ export function RootNavigator() {
   if (loading) return null;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator>
         {token ? (
           <>
             <Stack.Screen name="ChatList" component={ChatListScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'Новый чат' }} />
+            <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: '💬 Новый чат' }} />
             <Stack.Screen name="Conversation" component={ConversationScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Профиль' }} />
-            <Stack.Screen name="Quests" component={QuestListScreen} options={{ title: 'Квесты' }} />
+            <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: '👤 Профиль' }} />
+            <Stack.Screen name="Quests" component={QuestListScreen} options={{ title: '🗺️ Квесты' }} />
             <Stack.Screen
               name="QuestDetail"
               component={QuestDetailScreen}

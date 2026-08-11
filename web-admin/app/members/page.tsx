@@ -15,6 +15,12 @@ interface Member {
   roles: { role: { id: string; name: string } }[];
 }
 
+const STATUS_BADGE: Record<string, string> = {
+  ACTIVE: 'badge badge-success',
+  BANNED: 'badge badge-danger',
+  PENDING: 'badge badge-primary',
+};
+
 export default function MembersPage() {
   const { token, loading } = useAuth();
   const router = useRouter();
@@ -44,38 +50,43 @@ export default function MembersPage() {
 
   return (
     <div>
-      <h1>Участники</h1>
-      {error && <p className="error">{error}</p>}
-      <table>
-        <thead>
-          <tr>
-            <th>Имя</th>
-            <th>Контакт</th>
-            <th>Статус</th>
-            <th>Баллы</th>
-            <th>Роли</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((m) => (
-            <tr key={m.id}>
-              <td>{m.displayName}</td>
-              <td>{m.email ?? m.phone}</td>
-              <td>
-                <span className="badge">{m.status}</span>
-              </td>
-              <td>{m.pointsTotal}</td>
-              <td>{m.roles.map((r) => r.role.name).join(', ')}</td>
-              <td>
-                {m.status !== 'BANNED' && (
-                  <button onClick={() => banMember(m.id)}>Заблокировать</button>
-                )}
-              </td>
+      <h1 className="page-title">👥 Участники</h1>
+      <p className="page-subtitle">Список аккаунтов клуба, баллы и роли</p>
+      {error && <p className="error">⚠️ {error}</p>}
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Контакт</th>
+              <th>Статус</th>
+              <th>Баллы</th>
+              <th>Роли</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.id}>
+                <td>{m.displayName}</td>
+                <td className="text-muted-foreground">{m.email ?? m.phone}</td>
+                <td>
+                  <span className={STATUS_BADGE[m.status] ?? 'badge'}>{m.status}</span>
+                </td>
+                <td>🏆 {m.pointsTotal}</td>
+                <td className="text-muted-foreground">{m.roles.map((r) => r.role.name).join(', ') || '—'}</td>
+                <td>
+                  {m.status !== 'BANNED' && (
+                    <button className="btn-danger" onClick={() => banMember(m.id)}>
+                      🚫 Заблокировать
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
+import { Appbar, Avatar, Badge, List, Text, ActivityIndicator } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
 import type { RCSubscription } from '../rocketchat/types';
@@ -38,6 +39,7 @@ export function ChatListScreen({ navigation }: Props) {
   if (!ready) {
     return (
       <View style={styles.center}>
+        <ActivityIndicator animating size="large" />
         <Text style={styles.dim}>{error ?? 'Подключаемся к чату…'}</Text>
       </View>
     );
@@ -45,75 +47,62 @@ export function ChatListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Чаты</Text>
-        <View style={styles.headerButtons}>
-          <Pressable onPress={() => navigation.navigate('NewChat')}>
-            <Text style={styles.headerAction}>Новый чат</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('Quests')}>
-            <Text style={styles.headerAction}>Квесты</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('Profile')}>
-            <Text style={styles.headerAction}>Профиль</Text>
-          </Pressable>
-        </View>
-      </View>
-      {loadError && <Text style={styles.error}>{loadError}</Text>}
+      <Appbar.Header elevated>
+        <Appbar.Content title="💬 Чаты" />
+        <Appbar.Action icon="plus-circle-outline" onPress={() => navigation.navigate('NewChat')} />
+        <Appbar.Action icon="map-marker-path" onPress={() => navigation.navigate('Quests')} />
+        <Appbar.Action icon="account-circle-outline" onPress={() => navigation.navigate('Profile')} />
+      </Appbar.Header>
+      {loadError && <Text style={styles.error}>⚠️ {loadError}</Text>}
       <FlatList
         data={rooms}
         keyExtractor={(item) => item._id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        contentContainerStyle={rooms.length === 0 ? styles.emptyList : undefined}
         ListEmptyComponent={<Text style={styles.dim}>Пока нет ни одного чата</Text>}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.row}
-            onPress={() =>
-              navigation.navigate('Conversation', {
-                roomId: item.rid,
-                roomType: item.t,
-                title: item.fname ?? item.name ?? 'Чат',
-              })
-            }
-          >
-            <Text style={styles.roomName}>{item.fname ?? item.name ?? 'Чат'}</Text>
-            {item.unread > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.unread}</Text>
-              </View>
-            )}
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const name = item.fname ?? item.name ?? 'Чат';
+          return (
+            <List.Item
+              title={name}
+              onPress={() =>
+                navigation.navigate('Conversation', {
+                  roomId: item.rid,
+                  roomType: item.t,
+                  title: name,
+                })
+              }
+              left={(props) => <Avatar.Text {...props} size={44} label={initials(name)} />}
+              right={() =>
+                item.unread > 0 ? (
+                  <Badge size={22} style={styles.badge}>
+                    {item.unread}
+                  </Badge>
+                ) : null
+              }
+              style={styles.row}
+            />
+          );
+        }}
       />
     </View>
   );
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f1115' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    paddingTop: 56,
-  },
-  title: { fontSize: 24, fontWeight: '700', color: '#fff' },
-  headerButtons: { flexDirection: 'row', gap: 16 },
-  headerAction: { color: '#93c5fd' },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1b1f27',
-  },
-  roomName: { color: '#fff', fontSize: 16 },
-  badge: { backgroundColor: '#3b82f6', borderRadius: 10, minWidth: 20, alignItems: 'center', paddingHorizontal: 6 },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  dim: { color: '#888', textAlign: 'center', marginTop: 32 },
-  error: { color: '#f87171', textAlign: 'center', marginBottom: 8 },
+  container: { flex: 1, backgroundColor: '#121316' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121316', gap: 12 },
+  row: { paddingHorizontal: 16, alignItems: 'center' },
+  badge: { alignSelf: 'center' },
+  emptyList: { flexGrow: 1, justifyContent: 'center' },
+  dim: { color: '#9a9691', textAlign: 'center', marginTop: 8 },
+  error: { color: '#e5766b', textAlign: 'center', marginVertical: 8 },
 });

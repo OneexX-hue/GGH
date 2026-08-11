@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import { Text, TextInput, Button, HelperText } from 'react-native-paper';
 import { useAuth } from '../auth-context';
 import { ApiError } from '../api';
 
@@ -26,60 +27,46 @@ export function RegisterScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Регистрация по приглашению</Text>
+      <Text variant="titleLarge" style={styles.title}>
+        🎟️ Регистрация по приглашению
+      </Text>
       <TextInput
-        style={styles.input}
-        placeholder="Инвайт-код"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="Инвайт-код"
         autoCapitalize="characters"
         value={inviteCode}
         onChangeText={setInviteCode}
-      />
-      <TextInput
         style={styles.input}
-        placeholder="Имя"
-        placeholderTextColor="#888"
-        value={displayName}
-        onChangeText={setDisplayName}
       />
+      <TextInput mode="outlined" label="Имя" value={displayName} onChangeText={setDisplayName} style={styles.input} />
       <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        style={styles.input}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Пароль"
-        placeholderTextColor="#888"
+        mode="outlined"
+        label="Пароль"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        style={styles.input}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? 'Отправляем…' : 'Зарегистрироваться'}</Text>
-      </Pressable>
+      {error && <HelperText type="error">⚠️ {error}</HelperText>}
+      <Button mode="contained" onPress={onSubmit} loading={submitting} disabled={submitting} style={styles.button}>
+        {submitting ? 'Отправляем…' : '✅ Зарегистрироваться'}
+      </Button>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0f1115' },
-  title: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 24, textAlign: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
-  },
-  button: { backgroundColor: '#3b82f6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  error: { color: '#f87171', marginBottom: 8 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#121316' },
+  title: { marginBottom: 20, textAlign: 'center', fontWeight: '700' },
+  input: { marginBottom: 12 },
+  button: { marginTop: 8, borderRadius: 8 },
 });

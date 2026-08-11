@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
+import { Text, TextInput, Button, HelperText, Divider, Avatar } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
@@ -11,6 +12,8 @@ interface LeaderboardEntry {
   user: { id: string; displayName: string } | undefined;
   points: number;
 }
+
+const MEDALS = ['🥇', '🥈', '🥉'];
 
 export function QuestDetailScreen({ route }: Props) {
   const { questId, checkpoints: initialCheckpoints } = route.params;
@@ -56,46 +59,58 @@ export function QuestDetailScreen({ route }: Props) {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={{ padding: 16 }}
+      contentContainerStyle={styles.content}
       data={checkpoints}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
         <View>
-          {error && <Text style={styles.error}>{error}</Text>}
-          {message && <Text style={styles.success}>{message}</Text>}
+          {error && <HelperText type="error">⚠️ {error}</HelperText>}
+          {message && <HelperText type="info" style={styles.success}>🎉 {message}</HelperText>}
         </View>
       }
       renderItem={({ item }) => (
         <View style={styles.checkpointRow}>
           <Text style={styles.checkpointTitle}>
-            {item.title} ({item.points} баллов)
+            📍 {item.title} <Text style={styles.points}>({item.points} баллов)</Text>
           </Text>
           {item.completed ? (
-            <Text style={styles.dim}>Пройдено ✓</Text>
+            <Text style={styles.done}>✅ Пройдено</Text>
           ) : (
             <View style={styles.redeemRow}>
               <TextInput
-                style={styles.input}
-                placeholder="Код с чекпоинта"
-                placeholderTextColor="#888"
+                mode="outlined"
+                label="Код с чекпоинта"
                 autoCapitalize="characters"
                 value={codes[item.id] ?? ''}
                 onChangeText={(text) => setCodes((prev) => ({ ...prev, [item.id]: text }))}
+                style={styles.input}
+                dense
               />
-              <Pressable style={styles.button} onPress={() => onRedeem(item.id)}>
-                <Text style={styles.buttonText}>Погасить</Text>
-              </Pressable>
+              <Button mode="contained" onPress={() => onRedeem(item.id)} style={styles.redeemButton}>
+                Погасить
+              </Button>
             </View>
           )}
         </View>
       )}
       ListFooterComponent={
-        <View style={{ marginTop: 24 }}>
-          <Text style={styles.sectionTitle}>Лидерборд</Text>
+        <View style={styles.footer}>
+          <Divider style={styles.divider} />
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            🏆 Лидерборд
+          </Text>
+          {leaderboard.length === 0 && <Text style={styles.dim}>Пока никто не набрал баллов</Text>}
           {leaderboard.map((entry, i) => (
-            <Text key={entry.user?.id ?? i} style={styles.dim}>
-              {entry.user?.displayName ?? '—'} — {entry.points}
-            </Text>
+            <View key={entry.user?.id ?? i} style={styles.leaderRow}>
+              <Avatar.Text
+                size={32}
+                label={MEDALS[i] ?? String(i + 1)}
+                style={styles.medalAvatar}
+                labelStyle={styles.medalLabel}
+              />
+              <Text style={styles.leaderName}>{entry.user?.displayName ?? '—'}</Text>
+              <Text style={styles.leaderPoints}>{entry.points}</Text>
+            </View>
           ))}
         </View>
       }
@@ -104,23 +119,23 @@ export function QuestDetailScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115' },
-  checkpointRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1b1f27' },
-  checkpointTitle: { color: '#fff', fontSize: 16, marginBottom: 8 },
-  redeemRow: { flexDirection: 'row', gap: 8 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 10,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
-  },
-  button: { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  dim: { color: '#888', marginTop: 2 },
-  error: { color: '#f87171', marginBottom: 8 },
-  success: { color: '#4ade80', marginBottom: 8 },
+  container: { flex: 1, backgroundColor: '#121316' },
+  content: { padding: 16 },
+  checkpointRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2a2d33' },
+  checkpointTitle: { color: '#e8e6e1', fontSize: 16, marginBottom: 8 },
+  points: { color: '#9a9691', fontSize: 14 },
+  done: { color: '#7fce9a', fontWeight: '600' },
+  redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  input: { flex: 1 },
+  redeemButton: { borderRadius: 8 },
+  footer: { marginTop: 8 },
+  divider: { marginBottom: 20 },
+  sectionTitle: { marginBottom: 12, fontWeight: '700' },
+  leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  medalAvatar: { backgroundColor: '#212327' },
+  medalLabel: { fontSize: 16 },
+  leaderName: { flex: 1, color: '#e8e6e1' },
+  leaderPoints: { color: '#e8a33d', fontWeight: '700' },
+  dim: { color: '#9a9691' },
+  success: { color: '#7fce9a' },
 });

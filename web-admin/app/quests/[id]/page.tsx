@@ -102,76 +102,95 @@ export default function QuestDetailPage({ params }: { params: { id: string } }) 
   if (!quest) {
     return (
       <div>
-        <h1>Квест</h1>
-        {error && <p className="error">{error}</p>}
+        <h1 className="page-title">🗺️ Квест</h1>
+        {error && <p className="error">⚠️ {error}</p>}
       </div>
     );
   }
 
   return (
     <div>
-      <h1>{quest.title}</h1>
-      {error && <p className="error">{error}</p>}
-      <p>
-        <span className="badge">{quest.isActive ? 'активен' : 'завершён'}</span>{' '}
-        {quest.isActive && <button onClick={onEndQuest}>Завершить квест</button>}
+      <h1 className="page-title">🗺️ {quest.title}</h1>
+      {error && <p className="error">⚠️ {error}</p>}
+      <p className="mb-7 flex items-center gap-3">
+        <span className={quest.isActive ? 'badge badge-success' : 'badge'}>
+          {quest.isActive ? '🟢 активен' : '🏁 завершён'}
+        </span>
+        {quest.isActive && (
+          <button className="btn-outline" onClick={onEndQuest}>
+            🏁 Завершить квест
+          </button>
+        )}
       </p>
 
-      <h2>Чекпоинты</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>Код</th>
-            <th>Баллы</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {quest.checkpoints.map((cp) => (
-            <tr key={cp.id}>
-              <td>{cp.title}</td>
-              <td>
-                <code>{cp.code}</code>
-              </td>
-              <td>{cp.points}</td>
-              <td>
-                <button onClick={() => onRegenerateCode(cp.id)}>Перегенерировать код</button>
-              </td>
+      <h2 className="section-title">📍 Чекпоинты</h2>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Название</th>
+              <th>Код</th>
+              <th>Баллы</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {quest.checkpoints.map((cp) => (
+              <tr key={cp.id}>
+                <td>{cp.title}</td>
+                <td>
+                  <code>{cp.code}</code>
+                </td>
+                <td>🏆 {cp.points}</td>
+                <td>
+                  <button className="btn-outline" onClick={() => onRegenerateCode(cp.id)}>
+                    🔄 Перегенерировать код
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <form onSubmit={onAddCheckpoint} className="form-row" style={{ marginTop: 16 }}>
-        <input value={cpTitle} onChange={(e) => setCpTitle(e.target.value)} placeholder="Название чекпоинта" />
-        <input
-          type="number"
-          min={1}
-          value={cpPoints}
-          onChange={(e) => setCpPoints(e.target.value)}
-          placeholder="Баллы"
-        />
-        <button type="submit">Добавить чекпоинт</button>
-      </form>
+      <div className="card" style={{ marginTop: 16 }}>
+        <form onSubmit={onAddCheckpoint} className="form-row" style={{ marginBottom: 0 }}>
+          <input value={cpTitle} onChange={(e) => setCpTitle(e.target.value)} placeholder="Название чекпоинта" />
+          <input
+            type="number"
+            min={1}
+            value={cpPoints}
+            onChange={(e) => setCpPoints(e.target.value)}
+            placeholder="Баллы"
+          />
+          <button type="submit">➕ Добавить чекпоинт</button>
+        </form>
+      </div>
 
-      <h2 style={{ marginTop: 32 }}>Лидерборд квеста</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Участник</th>
-            <th>Баллы</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leaderboard.map((entry, i) => (
-            <tr key={entry.user?.id ?? i}>
-              <td>{entry.user?.displayName ?? '—'}</td>
-              <td>{entry.points}</td>
+      <h2 className="section-title">🏆 Лидерборд квеста</h2>
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Участник</th>
+              <th>Баллы</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {leaderboard.map((entry, i) => (
+              <tr key={entry.user?.id ?? i}>
+                <td>
+                  {i === 0 && '🥇 '}
+                  {i === 1 && '🥈 '}
+                  {i === 2 && '🥉 '}
+                  {entry.user?.displayName ?? '—'}
+                </td>
+                <td>{entry.points}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

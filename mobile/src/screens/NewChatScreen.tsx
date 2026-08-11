@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, TextInput, StyleSheet, Switch } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
+import { Text, TextInput, Button, Checkbox, Switch, List, HelperText } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { useChat } from '../chat-context';
@@ -74,57 +75,52 @@ export function NewChatScreen({ navigation }: Props) {
         data={members}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => toggle(item.rocketChatUsername)}>
-            <Text style={styles.name}>{item.displayName}</Text>
-            <Text style={styles.checkbox}>{selected.has(item.rocketChatUsername) ? '✓' : ''}</Text>
-          </Pressable>
+          <List.Item
+            title={item.displayName}
+            onPress={() => toggle(item.rocketChatUsername)}
+            left={() => (
+              <Checkbox
+                status={selected.has(item.rocketChatUsername) ? 'checked' : 'unchecked'}
+                onPress={() => toggle(item.rocketChatUsername)}
+              />
+            )}
+          />
         )}
       />
       {selected.size > 1 && (
         <View style={styles.groupOptions}>
           <TextInput
-            style={styles.input}
-            placeholder="Название группы/канала"
-            placeholderTextColor="#888"
+            mode="outlined"
+            label="Название группы/канала"
             value={groupName}
             onChangeText={setGroupName}
           />
           <View style={styles.switchRow}>
-            <Text style={styles.name}>Канал (писать могут только админы)</Text>
+            <Text variant="bodyMedium" style={styles.switchLabel}>
+              📢 Канал (писать могут только админы)
+            </Text>
             <Switch value={broadcast} onValueChange={setBroadcast} />
           </View>
         </View>
       )}
-      {error && <Text style={styles.error}>{error}</Text>}
-      <Pressable style={styles.button} onPress={onStart} disabled={submitting || selected.size === 0}>
-        <Text style={styles.buttonText}>{submitting ? 'Создаём…' : 'Начать чат'}</Text>
-      </Pressable>
+      {error && <HelperText type="error">⚠️ {error}</HelperText>}
+      <Button
+        mode="contained"
+        onPress={onStart}
+        loading={submitting}
+        disabled={submitting || selected.size === 0}
+        style={styles.button}
+      >
+        {submitting ? 'Создаём…' : '💬 Начать чат'}
+      </Button>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115', padding: 16 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1b1f27',
-  },
-  name: { color: '#fff', fontSize: 16 },
-  checkbox: { color: '#3b82f6', fontSize: 18, fontWeight: '700' },
-  groupOptions: { marginTop: 12, gap: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#333842',
-    borderRadius: 8,
-    padding: 12,
-    color: '#fff',
-    backgroundColor: '#1b1f27',
-  },
+  container: { flex: 1, backgroundColor: '#121316', padding: 16 },
+  groupOptions: { marginTop: 12, gap: 12 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  button: { backgroundColor: '#3b82f6', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 16 },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  error: { color: '#f87171', marginTop: 8 },
+  switchLabel: { flex: 1, marginRight: 8 },
+  button: { marginTop: 16, borderRadius: 8 },
 });

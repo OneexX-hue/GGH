@@ -67,55 +67,58 @@ export default function SecurityPage() {
   }
 
   return (
-    <div style={{ maxWidth: 480 }}>
-      <h1>Безопасность</h1>
-      {error && <p className="error">{error}</p>}
+    <div style={{ maxWidth: 520 }}>
+      <h1 className="page-title">🔐 Безопасность</h1>
+      <p className="page-subtitle">Двухфакторная аутентификация аккаунта</p>
+      {error && <p className="error">⚠️ {error}</p>}
 
-      {me && (
-        <p>
-          Статус 2FA:{' '}
-          <span className="badge">{me.twoFactorEnabled ? 'включена' : 'выключена'}</span>
+      <div className="card">
+        {me && (
+          <p className="mb-3 flex items-center gap-3">
+            <span>Статус 2FA:</span>
+            <span className={me.twoFactorEnabled ? 'badge badge-success' : 'badge'}>
+              {me.twoFactorEnabled ? '✅ включена' : '⭕ выключена'}
+            </span>
+          </p>
+        )}
+
+        <p className="text-sm text-muted-foreground mb-4">
+          Обязательна для выполнения административных действий (управление
+          участниками, ролями, приглашениями, модерация чата, журнал аудита) —
+          без неё соответствующие запросы будут отклонены с 403, даже если у
+          роли есть нужное право.
         </p>
-      )}
 
-      <p>
-        Обязательна для выполнения административных действий (управление
-        участниками, ролями, приглашениями, модерация чата, журнал аудита) —
-        без неё соответствующие запросы будут отклонены с 403, даже если у
-        роли есть нужное право.
-      </p>
+        {!me?.twoFactorEnabled && !secret && <button onClick={onStart}>🔐 Начать подключение 2FA</button>}
 
-      {!me?.twoFactorEnabled && !secret && (
-        <button onClick={onStart}>Начать подключение 2FA</button>
-      )}
+        {secret && !me?.twoFactorEnabled && (
+          <div className="mt-4 flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              Добавьте ключ в приложение-аутентификатор (Google Authenticator,
+              Authy и т.п.) вручную — введите секрет ниже как TOTP-ключ, либо
+              используйте полную ссылку, если ваше приложение поддерживает
+              импорт по URL:
+            </p>
+            <p>
+              Секрет: <code>{secret}</code>
+            </p>
+            <p className="break-all">
+              Ссылка: <code>{otpauthUrl}</code>
+            </p>
+            <form onSubmit={onConfirm} className="form-row" style={{ marginBottom: 0 }}>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Код из приложения (6 цифр)"
+                maxLength={6}
+              />
+              <button type="submit">✅ Подтвердить</button>
+            </form>
+          </div>
+        )}
 
-      {secret && !me?.twoFactorEnabled && (
-        <div style={{ marginTop: 16 }}>
-          <p>
-            Добавьте ключ в приложение-аутентификатор (Google Authenticator,
-            Authy и т.п.) вручную — введите секрет ниже как TOTP-ключ, либо
-            используйте полную ссылку, если ваше приложение поддерживает
-            импорт по URL:
-          </p>
-          <p>
-            Секрет: <code>{secret}</code>
-          </p>
-          <p style={{ wordBreak: 'break-all' }}>
-            Ссылка: <code>{otpauthUrl}</code>
-          </p>
-          <form onSubmit={onConfirm} className="form-row">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Код из приложения (6 цифр)"
-              maxLength={6}
-            />
-            <button type="submit">Подтвердить</button>
-          </form>
-        </div>
-      )}
-
-      {confirmed && <p>2FA успешно включена.</p>}
+        {confirmed && <p className="notice mt-4">🎉 2FA успешно включена.</p>}
+      </div>
     </div>
   );
 }

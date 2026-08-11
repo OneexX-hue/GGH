@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet } from 'react-native';
+import { Text, List, ProgressBar, HelperText } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
@@ -51,18 +52,29 @@ export function QuestListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <HelperText type="error">⚠️ {error}</HelperText>}
       <FlatList
         data={quests}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={{ padding: 16 }}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        contentContainerStyle={quests.length === 0 ? styles.emptyList : styles.list}
         ListEmptyComponent={<Text style={styles.dim}>Сейчас нет активных квестов</Text>}
         renderItem={({ item }) => {
           const completedCount = item.checkpoints.filter((cp) => cp.completed).length;
+          const total = item.checkpoints.length;
+          const progress = total > 0 ? completedCount / total : 0;
           return (
-            <Pressable
-              style={styles.row}
+            <List.Item
+              title={`🗺️ ${item.title}`}
+              description={() => (
+                <View style={styles.progressBlock}>
+                  <Text style={styles.dim}>
+                    {completedCount}/{total} чекпоинтов пройдено
+                  </Text>
+                  <ProgressBar progress={progress} style={styles.progressBar} />
+                </View>
+              )}
               onPress={() =>
                 navigation.navigate('QuestDetail', {
                   questId: item.id,
@@ -70,12 +82,9 @@ export function QuestListScreen({ navigation }: Props) {
                   checkpoints: item.checkpoints,
                 })
               }
-            >
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.dim}>
-                {completedCount}/{item.checkpoints.length} чекпоинтов пройдено
-              </Text>
-            </Pressable>
+              right={(props) => <List.Icon {...props} icon="chevron-right" />}
+              style={styles.row}
+            />
           );
         }}
       />
@@ -84,14 +93,11 @@ export function QuestListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f1115' },
-  row: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1b1f27',
-  },
-  title: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  dim: { color: '#888', marginTop: 4 },
-  error: { color: '#f87171', textAlign: 'center', marginTop: 8 },
+  container: { flex: 1, backgroundColor: '#121316' },
+  list: { paddingVertical: 8 },
+  row: { paddingHorizontal: 16 },
+  progressBlock: { marginTop: 4, gap: 6 },
+  progressBar: { borderRadius: 4, height: 6 },
+  emptyList: { flexGrow: 1, justifyContent: 'center' },
+  dim: { color: '#9a9691' },
 });
