@@ -20,7 +20,7 @@ interface Message {
   _id: string;
   msg: string;
   ts: string;
-  u: { username: string; name?: string };
+  u: { _id: string; username: string; name?: string };
 }
 
 type AccessAction = 'VIEW' | 'DOWNLOAD_ATTEMPT' | 'SCREENSHOT_DETECTED';
@@ -94,6 +94,21 @@ export default function ModerationPage() {
     }
   }
 
+  async function banSender(msgId: string, rocketChatUserId: string) {
+    if (!token || !selectedRoom) return;
+    if (!confirm('Забанить отправителя этого сообщения? Личность не раскрывается — бан по самому сообщению.')) return;
+    try {
+      await apiFetch(`/moderation/rooms/${selectedRoom._id}/messages/${msgId}/ban-sender`, {
+        method: 'POST',
+        token,
+        body: { rocketChatUserId },
+      });
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось забанить отправителя');
+    }
+  }
+
   function onAccessFilterChange(action: AccessAction | '') {
     setAccessFilter(action);
     if (token) loadAccessLog(token, action);
@@ -152,9 +167,12 @@ export default function ModerationPage() {
                     <td>{m.u.name ?? m.u.username}</td>
                     <td>{m.msg}</td>
                     <td className="text-muted-foreground">{new Date(m.ts).toLocaleString()}</td>
-                    <td>
+                    <td className="flex gap-2">
                       <button className="btn-danger" onClick={() => deleteMessage(m._id)}>
                         🗑️ Удалить
+                      </button>
+                      <button className="btn-outline" onClick={() => banSender(m._id, m.u._id)}>
+                        🚫 Забанить отправителя
                       </button>
                     </td>
                   </tr>
