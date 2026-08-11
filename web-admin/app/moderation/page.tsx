@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { TrashIcon, XIcon } from '../../components/icons';
 
 type RoomType = 'd' | 'p' | 'c';
 
@@ -169,10 +170,10 @@ export default function ModerationPage() {
                     <td className="text-muted-foreground">{new Date(m.ts).toLocaleString()}</td>
                     <td className="flex gap-2">
                       <button className="btn-danger" onClick={() => deleteMessage(m._id)}>
-                        🗑️ Удалить
+                        <TrashIcon size={13} /> Удалить
                       </button>
                       <button className="btn-outline" onClick={() => banSender(m._id, m.u._id)}>
-                        🚫 Забанить отправителя
+                        <XIcon size={13} /> Забанить отправителя
                       </button>
                     </td>
                   </tr>

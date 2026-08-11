@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { ShieldLockIcon } from '../../components/icons';
 
 interface Me {
   id: string;
@@ -68,7 +69,9 @@ export default function SecurityPage() {
 
   return (
     <div style={{ maxWidth: 520 }}>
-      <h1 className="page-title">🔐 Безопасность</h1>
+      <h1 className="page-title">
+        <ShieldLockIcon size={22} /> Безопасность
+      </h1>
       <p className="page-subtitle">Двухфакторная аутентификация аккаунта</p>
       {error && <p className="error">⚠️ {error}</p>}
 
@@ -89,7 +92,11 @@ export default function SecurityPage() {
           роли есть нужное право.
         </p>
 
-        {!me?.twoFactorEnabled && !secret && <button onClick={onStart}>🔐 Начать подключение 2FA</button>}
+        {!me?.twoFactorEnabled && !secret && (
+          <button onClick={onStart}>
+            <ShieldLockIcon size={14} /> Начать подключение 2FA
+          </button>
+        )}
 
         {secret && !me?.twoFactorEnabled && (
           <div className="mt-4 flex flex-col gap-3">

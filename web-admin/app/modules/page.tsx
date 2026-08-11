@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { PlusIcon } from '../../components/icons';
 
 interface ModuleDefinition {
   key: string;
@@ -97,7 +98,9 @@ export default function ModulesPage() {
           <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Ключ (например auto-quest)" />
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" />
           <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
-          <button type="submit">✨ Зарегистрировать</button>
+          <button type="submit">
+            <PlusIcon size={14} /> Зарегистрировать
+          </button>
         </form>
       </div>
 

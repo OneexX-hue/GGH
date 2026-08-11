@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { PlusIcon, XIcon } from '../../components/icons';
 
 interface Invite {
   id: string;
@@ -100,7 +101,9 @@ export default function InvitesPage() {
                 placeholder="email или телефон"
               />
             )}
-            <button type="submit">✨ Создать инвайт</button>
+            <button type="submit">
+              <PlusIcon size={14} /> Создать инвайт
+            </button>
           </div>
         </form>
       </div>
@@ -137,7 +140,7 @@ export default function InvitesPage() {
                 <td>
                   {!inv.revokedAt && (
                     <button className="btn-outline" onClick={() => onRevoke(inv.id)}>
-                      Отозвать
+                      <XIcon size={13} /> Отозвать
                     </button>
                   )}
                 </td>

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { PlusIcon } from '../../components/icons';
 
 interface Role {
   id: string;
@@ -97,7 +98,9 @@ export default function RolesPage() {
       <div className="card">
         <form onSubmit={onCreateRole} className="form-row" style={{ marginBottom: 0 }}>
           <input value={newRoleName} onChange={(e) => setNewRoleName(e.target.value)} placeholder="Название роли" />
-          <button type="submit">Создать</button>
+          <button type="submit">
+            <PlusIcon size={14} /> Создать
+          </button>
         </form>
       </div>
 

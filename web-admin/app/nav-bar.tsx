@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
+import { ShieldLockIcon, LockIcon, XIcon } from '../components/icons';
 
 const NAV_ITEMS = [
   { href: '/members', label: 'Участники', icon: '👥' },
@@ -13,7 +14,7 @@ const NAV_ITEMS = [
   { href: '/quests', label: 'Квесты', icon: '🗺️' },
   { href: '/hide-and-seek', label: 'Прятки', icon: '🙈' },
   { href: '/moderation', label: 'Модерация', icon: '💬' },
-  { href: '/security', label: 'Безопасность', icon: '🔐' },
+  { href: '/security', label: 'Безопасность', icon: <ShieldLockIcon size={16} /> },
 ];
 
 export function NavBar() {
@@ -23,7 +24,7 @@ export function NavBar() {
   return (
     <nav className="nav">
       <div className="nav-brand">
-        <span>🏁</span>
+        <ShieldLockIcon size={20} />
         <span>CarClub Admin</span>
       </div>
       {token ? (
@@ -35,12 +36,12 @@ export function NavBar() {
             </Link>
           ))}
           <button className="btn-outline" style={{ marginTop: 18 }} onClick={logout}>
-            🚪 Выйти
+            <XIcon size={14} /> Выйти
           </button>
         </>
       ) : (
         <Link href="/login">
-          <span>🔑</span>
+          <LockIcon size={16} />
           <span>Войти</span>
         </Link>
       )}

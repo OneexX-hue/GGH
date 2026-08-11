@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { XIcon } from '../../components/icons';
 
 interface Application {
   id: string;
@@ -115,7 +116,7 @@ export default function ApplicationsPage() {
                     <span className="inline-flex gap-2">
                       <button onClick={() => onReview(app, 'APPROVED')}>✅ Одобрить</button>
                       <button className="btn-danger" onClick={() => onReview(app, 'REJECTED')}>
-                        ❌ Отклонить
+                        <XIcon size={13} /> Отклонить
                       </button>
                     </span>
                   )}

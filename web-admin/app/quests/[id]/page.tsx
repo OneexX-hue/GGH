@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../lib/auth-context';
 import { apiFetch, ApiError } from '../../../lib/api';
+import { PlusIcon } from '../../../components/icons';
 
 interface Checkpoint {
   id: string;
@@ -163,7 +164,9 @@ export default function QuestDetailPage({ params }: { params: { id: string } }) 
             onChange={(e) => setCpPoints(e.target.value)}
             placeholder="Баллы"
           />
-          <button type="submit">➕ Добавить чекпоинт</button>
+          <button type="submit">
+            <PlusIcon size={14} /> Добавить чекпоинт
+          </button>
         </form>
       </div>
 

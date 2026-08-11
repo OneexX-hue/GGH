@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { PlusIcon } from '../../components/icons';
 
 interface Round {
   id: string;
@@ -90,7 +91,9 @@ export default function HideAndSeekPage() {
             onChange={(e) => setPoints(e.target.value)}
             placeholder="Баллы"
           />
-          <button type="submit">✨ Создать</button>
+          <button type="submit">
+            <PlusIcon size={14} /> Создать
+          </button>
         </form>
       </div>
 

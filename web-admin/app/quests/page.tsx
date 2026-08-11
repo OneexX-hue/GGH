@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { PlusIcon } from '../../components/icons';
 
 interface Quest {
   id: string;
@@ -64,7 +65,9 @@ export default function QuestsPage() {
         <form onSubmit={onCreate} className="form-row" style={{ marginBottom: 0 }}>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название квеста" />
           <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание (опц.)" />
-          <button type="submit">✨ Создать</button>
+          <button type="submit">
+            <PlusIcon size={14} /> Создать
+          </button>
         </form>
       </div>
 

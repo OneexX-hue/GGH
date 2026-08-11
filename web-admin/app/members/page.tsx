@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
+import { XIcon } from '../../components/icons';
 
 interface Member {
   id: string;
@@ -78,7 +79,7 @@ export default function MembersPage() {
                 <td>
                   {m.status !== 'BANNED' && (
                     <button className="btn-danger" onClick={() => banMember(m.id)}>
-                      🚫 Заблокировать
+                      <XIcon size={13} /> Заблокировать
                     </button>
                   )}
                 </td>
