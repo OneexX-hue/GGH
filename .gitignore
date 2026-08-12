@@ -21,6 +21,8 @@ node_modules
 
 # Локальное dev-хранилище зашифрованных медиа (backend/src/media/storage)
 backend/storage-data/
+backend/storage-data-e2e/
+backend/coverage/
 
 # IDEs and editors
 /.idea

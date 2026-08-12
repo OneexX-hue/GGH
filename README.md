@@ -81,6 +81,37 @@ Enterprise — см. `docs/DECISIONS.md`) и однонодовый Mongo replic
 остальной API не блокируются, но `POST /chat-bridge/session` (и,
 соответственно, чат в мобильном приложении) вернёт 503.
 
+## Тесты (backend)
+
+Unit-тесты (моки Prisma/зависимостей, без реальной БД):
+
+```bash
+cd backend
+npm test
+```
+
+E2e-тесты поднимают весь `AppModule` целиком против **отдельной**
+тестовой базы (не dev-базы) — нужно один раз создать её и применить
+миграции + сид:
+
+```bash
+createdb carclub_test   # или: psql -c "CREATE DATABASE carclub_test OWNER carclub;"
+E2E_DATABASE_URL="postgresql://carclub:carclub@localhost:5432/carclub_test?schema=public" \
+  DATABASE_URL="postgresql://carclub:carclub@localhost:5432/carclub_test?schema=public" \
+  npx prisma migrate deploy
+DATABASE_URL="postgresql://carclub:carclub@localhost:5432/carclub_test?schema=public" \
+  npm run prisma:seed
+
+npm run test:e2e
+```
+
+`test/setup-env.ts` принудительно переопределяет `DATABASE_URL` внутри
+самого прогона тестов (на `carclub_test` по умолчанию, либо на
+`E2E_DATABASE_URL`, если задан) — так что даже если в `.env` указана
+dev-база, e2e-тесты её не тронут. Rocket.Chat для e2e не поднимается —
+`ROCKETCHAT_*` переменные намеренно не заданы, chat-bridge работает в
+уже описанном выше no-op режиме.
+
 ## Статус реализации
 
 **Этап 1** (см. `docs/ROADMAP.md`): схема БД, backend-скелет (auth,
