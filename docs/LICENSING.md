@@ -76,6 +76,12 @@ GPL/AGPL/сильный copyleft без явного одобрения чело
 отдельный due diligence не проведён — см. `docs/DECISIONS.md`, "Водяной
 знак на видео (ffmpeg) — не решено".
 
+### Хранилище медиа — S3-совместимый адаптер, проверено 12.08.2026 по полю `license` в package.json на npm registry
+
+| Компонент | Лицензия | Комментарий |
+|---|---|---|
+| `@aws-sdk/client-s3` (backend) | Apache-2.0 | Официальный AWS SDK v3, работает с любым S3-совместимым API (AWS/MinIO/Yandex Object Storage) через настраиваемый `endpoint`, не только с AWS — см. `S3StorageAdapter` |
+
 ### Дизайн-система web-admin/mobile, проверено 11.08.2026 по полю `license` в package.json на npm registry
 
 По просьбе пользователя — визуальное обновление через готовые
