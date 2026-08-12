@@ -10,6 +10,7 @@ export type IconName =
   | 'file'
   | 'folder'
   | 'lock'
+  | 'lock-solid'
   | 'mask'
   | 'mic'
   | 'more'
@@ -18,6 +19,7 @@ export type IconName =
   | 'pin'
   | 'plus'
   | 'search'
+  | 'send'
   | 'settings'
   | 'shield-lock'
   | 'sliders'
@@ -56,6 +58,12 @@ const SHAPES: Record<IconName, (color: string) => React.ReactNode> = {
       <Path key="p" stroke={c} d="M9 10V7a3 3 0 0 1 6 0v3" />
     </>
   ),
+  'lock-solid': (c) => (
+    <>
+      <Rect key="r" fill={c} stroke="none" x="7" y="10" width="10" height="9" rx="2" />
+      <Path key="p" stroke={c} d="M9 10V7a3 3 0 0 1 6 0v3" />
+    </>
+  ),
   mask: (c) => (
     <>
       <Path key="p1" stroke={c} d="M4 8c5-3 11-3 16 0l-2 8c-4 4-8 4-12 0L4 8Z" />
@@ -85,6 +93,7 @@ const SHAPES: Record<IconName, (color: string) => React.ReactNode> = {
       <Path key="p" stroke={c} d="m16 16 4 4" />
     </>
   ),
+  send: (c) => <Path key="p" stroke={c} d="M4 12 20 4l-6 16-2.5-6.5L4 12Z" />,
   settings: (c) => (
     <>
       <Circle key="c" stroke={c} cx="12" cy="12" r="3" />

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, FlatList, StyleSheet, Pressable, TextInput as RNTextInput } from 'react-native';
-import { Appbar, Avatar, Text, ActivityIndicator } from 'react-native-paper';
+import { Appbar, Text, ActivityIndicator } from 'react-native-paper';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
 import type { RCSubscription } from '../rocketchat/types';
 import type { RootStackParamList } from '../navigation';
 import { Icon } from '../components/Icon';
+import { AvatarSilhouette } from '../components/AvatarSilhouette';
 import { colors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
@@ -141,14 +142,14 @@ export function ChatListScreen({ navigation }: Props) {
                 })
               }
             >
-              <Avatar.Text size={44} label={initials(name)} style={styles.avatar} labelStyle={styles.avatarLabel} />
+              <AvatarSilhouette id={item.rid} isGroup={item.t !== 'd'} size={44} />
               <View style={styles.rowBody}>
                 <View style={styles.rowTop}>
                   <View style={styles.rowNameWrap}>
                     <Text style={styles.rowName} numberOfLines={1}>
                       {name}
                     </Text>
-                    <Icon name="lock" size={12} color={colors.onSurfaceVariant} />
+                    <Icon name="lock-solid" size={12} color={colors.onSurfaceVariant} />
                   </View>
                   <Text style={styles.rowTime}>{formatTime(item._updatedAt)}</Text>
                 </View>
@@ -173,13 +174,6 @@ export function ChatListScreen({ navigation }: Props) {
       />
     </View>
   );
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 function formatTime(iso: string): string {
@@ -211,8 +205,6 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 12.5, color: colors.onSurfaceVariant },
   tabTextActive: { color: colors.onSurface },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11 },
-  avatar: { backgroundColor: colors.surfaceVariant },
-  avatarLabel: { color: colors.onSurface },
   rowBody: { flex: 1, gap: 5 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowNameWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },

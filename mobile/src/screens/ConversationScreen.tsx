@@ -25,6 +25,12 @@ const TTL_PRESETS: { label: string; seconds: number | null }[] = [
   { label: '24 часа', seconds: 24 * 60 * 60 },
 ];
 
+function formatMessageTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
 function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   if (totalSeconds < 60) return `${totalSeconds}с`;
@@ -175,7 +181,13 @@ export function ConversationScreen({ route, navigation }: Props) {
                 ) : mediaMarker ? (
                   <ProtectedMediaViewer mediaId={mediaMarker.mediaId} kind={mediaMarker.kind} />
                 ) : (
-                  <Text style={mine ? styles.textMine : styles.textTheirs}>{contentText}</Text>
+                  <>
+                    <Text style={mine ? styles.textMine : styles.textTheirs}>{contentText}</Text>
+                    <View style={styles.bubbleMeta}>
+                      <Text style={styles.bubbleMetaText}>{formatMessageTime(item.ts)}</Text>
+                      <Icon name="lock-solid" size={11} color="#8e979f" />
+                    </View>
+                  </>
                 )}
                 {ttl && !expired && remainingMs !== null && (
                   <View style={styles.timerRow}>
@@ -238,7 +250,7 @@ export function ConversationScreen({ route, navigation }: Props) {
           dense
         />
         <IconButton
-          icon={(props) => <Icon name="mic" size={props.size * 0.75} color={props.color} />}
+          icon={(props) => <Icon name="send" size={props.size * 0.75} color={props.color} />}
           mode="contained"
           onPress={onSend}
           disabled={!draft.trim()}
@@ -260,6 +272,8 @@ const styles = StyleSheet.create({
   author: { color: '#e8edf2', fontSize: 12, marginBottom: 2 },
   textMine: { color: '#f4f6f8', fontSize: 15 },
   textTheirs: { color: '#f4f6f8', fontSize: 15 },
+  bubbleMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 4 },
+  bubbleMetaText: { fontSize: 11, color: '#8e979f' },
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   timerRing: {
     width: 26,
