@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth-context';
 import { ShieldLockIcon, LockIcon } from '../components/icons';
 
 const NAV_ITEMS = [
+  { href: '/chat', label: 'Чат', icon: '💬' },
   { href: '/members', label: 'Участники', icon: '👥' },
   { href: '/invites', label: 'Приглашения', icon: '✉️' },
   { href: '/applications', label: 'Заявки', icon: '📝' },
