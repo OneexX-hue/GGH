@@ -122,5 +122,5 @@ const styles = StyleSheet.create({
   groupOptions: { marginTop: 12, gap: 12 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   switchLabel: { flex: 1, marginRight: 8 },
-  button: { marginTop: 16, borderRadius: 8 },
+  button: { marginTop: 16, borderRadius: 10 },
 });

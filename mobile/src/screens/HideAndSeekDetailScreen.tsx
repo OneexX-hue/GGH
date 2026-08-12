@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   doneText: { color: '#93bda2', fontSize: 15, marginBottom: 12 },
   redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1 },
-  findButton: { borderRadius: 8 },
+  findButton: { borderRadius: 10 },
   divider: { marginVertical: 20 },
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },

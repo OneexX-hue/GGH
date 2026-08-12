@@ -56,7 +56,7 @@ export function LoginScreen({ navigation }: Props) {
       />
       <TextInput
         mode="outlined"
-        label="🔐 Код 2FA (если включена)"
+        label="Код 2FA (если включена)"
         keyboardType="number-pad"
         maxLength={6}
         value={totpCode}
@@ -86,6 +86,6 @@ const styles = StyleSheet.create({
   brandMark: { alignItems: 'center', marginBottom: 6 },
   title: { textAlign: 'center', marginBottom: 24, fontWeight: '700' },
   input: { marginBottom: 12 },
-  button: { marginTop: 8, borderRadius: 8 },
+  button: { marginTop: 8, borderRadius: 10 },
   link: { marginTop: 8 },
 });

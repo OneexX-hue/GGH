@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   done: { color: '#93bda2', fontWeight: '600' },
   redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1 },
-  redeemButton: { borderRadius: 8 },
+  redeemButton: { borderRadius: 10 },
   footer: { marginTop: 8 },
   divider: { marginBottom: 20 },
   sectionTitle: { marginBottom: 12, fontWeight: '700' },

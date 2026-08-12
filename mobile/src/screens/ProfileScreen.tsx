@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   switchLabel: { flex: 1, marginRight: 8 },
-  button: { borderRadius: 8, marginTop: 4 },
+  button: { borderRadius: 10, marginTop: 4 },
   divider: { marginVertical: 24 },
   logoutButton: { marginTop: 24, marginBottom: 24 },
   dim: { color: '#8e979f', marginBottom: 4 },
