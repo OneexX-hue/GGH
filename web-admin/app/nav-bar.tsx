@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../lib/auth-context';
-import { ShieldLockIcon, LockIcon, XIcon } from '../components/icons';
+import { ShieldLockIcon, LockIcon } from '../components/icons';
 
 const NAV_ITEMS = [
   { href: '/members', label: 'Участники', icon: '👥' },
@@ -36,7 +36,7 @@ export function NavBar() {
             </Link>
           ))}
           <button className="btn-outline" style={{ marginTop: 18 }} onClick={logout}>
-            <XIcon size={14} /> Выйти
+            Выйти
           </button>
         </>
       ) : (

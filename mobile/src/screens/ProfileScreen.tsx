@@ -3,7 +3,6 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { Text, TextInput, Button, Switch, HelperText, Chip, Divider } from 'react-native-paper';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
-import { Icon } from '../components/Icon';
 
 interface Me {
   id: string;
@@ -159,13 +158,7 @@ export function ProfileScreen() {
       )}
       ListEmptyComponent={<Text style={styles.dim}>Пока нет добавленных автомобилей</Text>}
       ListFooterComponent={
-        <Button
-          mode="text"
-          textColor="#e45f54"
-          onPress={() => logout()}
-          style={styles.logoutButton}
-          icon={({ size, color }) => <Icon name="x" size={size * 0.75} color={color} />}
-        >
+        <Button mode="text" textColor="#e45f54" onPress={() => logout()} style={styles.logoutButton}>
           Выйти
         </Button>
       }

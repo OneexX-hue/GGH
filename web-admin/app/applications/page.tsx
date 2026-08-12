@@ -115,8 +115,13 @@ export default function ApplicationsPage() {
                   {app.status === 'PENDING' && (
                     <span className="inline-flex gap-2">
                       <button onClick={() => onReview(app, 'APPROVED')}>✅ Одобрить</button>
-                      <button className="btn-danger" onClick={() => onReview(app, 'REJECTED')}>
-                        <XIcon size={13} /> Отклонить
+                      <button
+                        className="icon-btn-danger"
+                        onClick={() => onReview(app, 'REJECTED')}
+                        title="Отклонить"
+                        aria-label="Отклонить"
+                      >
+                        <XIcon size={15} />
                       </button>
                     </span>
                   )}

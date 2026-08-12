@@ -362,4 +362,27 @@ a {
     color: var(--foreground);
     box-shadow: none;
   }
+
+  /* Компактное деструктивное действие в строке таблицы — иконка без
+     текста, как .icon-btn в ките, а не сплошная цветная кнопка с
+     иконкой перед подписью. Название действия — в title/aria-label. */
+  .icon-btn-danger {
+    width: 34px;
+    height: 34px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--destructive);
+    padding: 0;
+    cursor: pointer;
+    transition: background-color var(--dur-ui) var(--ease-ui), border-color var(--dur-ui) var(--ease-ui);
+  }
+
+  .icon-btn-danger:hover {
+    background: color-mix(in srgb, var(--destructive) 14%, transparent);
+    border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
+    box-shadow: none;
+  }
 }

@@ -139,8 +139,13 @@ export default function InvitesPage() {
                 </td>
                 <td>
                   {!inv.revokedAt && (
-                    <button className="btn-outline" onClick={() => onRevoke(inv.id)}>
-                      <XIcon size={13} /> Отозвать
+                    <button
+                      className="icon-btn-danger"
+                      onClick={() => onRevoke(inv.id)}
+                      title="Отозвать"
+                      aria-label="Отозвать"
+                    >
+                      <XIcon size={15} />
                     </button>
                   )}
                 </td>

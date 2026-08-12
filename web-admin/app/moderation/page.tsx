@@ -169,11 +169,21 @@ export default function ModerationPage() {
                     <td>{m.msg}</td>
                     <td className="text-muted-foreground">{new Date(m.ts).toLocaleString()}</td>
                     <td className="flex gap-2">
-                      <button className="btn-danger" onClick={() => deleteMessage(m._id)}>
-                        <TrashIcon size={13} /> Удалить
+                      <button
+                        className="icon-btn-danger"
+                        onClick={() => deleteMessage(m._id)}
+                        title="Удалить сообщение"
+                        aria-label="Удалить сообщение"
+                      >
+                        <TrashIcon size={15} />
                       </button>
-                      <button className="btn-outline" onClick={() => banSender(m._id, m.u._id)}>
-                        <XIcon size={13} /> Забанить отправителя
+                      <button
+                        className="icon-btn-danger"
+                        onClick={() => banSender(m._id, m.u._id)}
+                        title="Забанить отправителя"
+                        aria-label="Забанить отправителя"
+                      >
+                        <XIcon size={15} />
                       </button>
                     </td>
                   </tr>

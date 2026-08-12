@@ -78,8 +78,13 @@ export default function MembersPage() {
                 <td className="text-muted-foreground">{m.roles.map((r) => r.role.name).join(', ') || '—'}</td>
                 <td>
                   {m.status !== 'BANNED' && (
-                    <button className="btn-danger" onClick={() => banMember(m.id)}>
-                      <XIcon size={13} /> Заблокировать
+                    <button
+                      className="icon-btn-danger"
+                      onClick={() => banMember(m.id)}
+                      title="Заблокировать"
+                      aria-label="Заблокировать"
+                    >
+                      <XIcon size={15} />
                     </button>
                   )}
                 </td>
