@@ -26,6 +26,41 @@ function Base({ size = 18, children, ...props }: IconProps & { children: React.R
   );
 }
 
+export function LockSolidIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="7" y="10" width="10" height="9" rx="2" fill="currentColor" stroke="none" />
+      <path d="M9 10V7a3 3 0 0 1 6 0v3" />
+    </Base>
+  );
+}
+
+export function CheckDoubleIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m2.5 12.5 4.5 4.5 8.5-9.5" />
+      <path d="m9.5 15.5 1.5 1.5 8.5-9.5" />
+    </Base>
+  );
+}
+
+export function FileLinesIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 3h7l4 4v14H7z" />
+      <path d="M14 3v5h5M9.5 13h5M9.5 16.5h5" />
+    </Base>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m9.5 5.5 6.5 6.5-6.5 6.5" />
+    </Base>
+  );
+}
+
 export function BellOffIcon(props: IconProps) {
   return (
     <Base {...props}>
@@ -134,6 +169,14 @@ export function PlusIcon(props: IconProps) {
   return (
     <Base {...props}>
       <path d="M12 5v14M5 12h14" />
+    </Base>
+  );
+}
+
+export function SendIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 12 20 4l-6 16-2.5-6.5L4 12Z" />
     </Base>
   );
 }

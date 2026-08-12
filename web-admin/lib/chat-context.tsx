@@ -10,6 +10,7 @@ interface ChatContextValue {
   ready: boolean;
   error: string | null;
   restClient: RocketChatRestClient | null;
+  session: RocketChatSession | null;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -17,17 +18,22 @@ const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [restClient, setRestClient] = useState<RocketChatRestClient | null>(null);
+  const [session, setSession] = useState<RocketChatSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
       setRestClient(null);
+      setSession(null);
       return;
     }
     let cancelled = false;
     apiFetch<RocketChatSession>('/chat-bridge/session', { method: 'POST', token })
-      .then((session) => {
-        if (!cancelled) setRestClient(new RocketChatRestClient(session));
+      .then((s) => {
+        if (!cancelled) {
+          setRestClient(new RocketChatRestClient(s));
+          setSession(s);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Не удалось подключиться к чату');
@@ -38,7 +44,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   return (
-    <ChatContext.Provider value={{ ready: !!restClient, error, restClient }}>{children}</ChatContext.Provider>
+    <ChatContext.Provider value={{ ready: !!restClient, error, restClient, session }}>
+      {children}
+    </ChatContext.Provider>
   );
 }
 
