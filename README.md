@@ -112,6 +112,25 @@ dev-база, e2e-тесты её не тронут. Rocket.Chat для e2e не
 `ROCKETCHAT_*` переменные намеренно не заданы, chat-bridge работает в
 уже описанном выше no-op режиме.
 
+## Тесты (web-admin, mobile)
+
+Точечные unit-тесты бизнес-логики — не 100% покрытие и не рендер
+React/React Native компонентов (для этого потребовался бы отдельный
+jsdom/React Testing Library стек, вне объёма текущего прохода).
+Покрыты: API-клиенты (`apiFetch`, `RocketChatRestClient` — оба
+приложения переиспользуют один и тот же тонкий REST-клиент к
+Rocket.Chat), утилита `cn` (web-admin), кодирование/декодирование
+медиа- и TTL-маркеров чата (mobile).
+
+```bash
+cd web-admin && npm test
+cd mobile && npm test
+```
+
+`jest.config.js` в обоих пакетах намеренно использует `testEnvironment:
+'node'` + `ts-jest` напрямую (не `jest-expo`/`next/jest`) — тестируемые
+модули не тянут за собой ни DOM, ни React Native рантайм.
+
 ## Статус реализации
 
 **Этап 1** (см. `docs/ROADMAP.md`): схема БД, backend-скелет (auth,
