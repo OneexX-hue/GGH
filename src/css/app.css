@@ -327,6 +327,10 @@ h2, h3, p { margin: 0; }
   font-size: var(--fs-12);
 }
 
+/* display: flex у строк перебивает браузерное [hidden] — возвращаем скрытие */
+.m-row[hidden],
+.d-row[hidden] { display: none; }
+
 /* Список чатов (телефон) */
 .m-list {
   display: flex;
