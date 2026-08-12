@@ -53,6 +53,8 @@ model User {
   createdHideAndSeekRounds HideAndSeekRound[]  @relation("HideAndSeekRoundCreatedBy")
   hiddenInRounds        HideAndSeekRound[]    @relation("HideAndSeekRoundHider")
   hideAndSeekFinds      HideAndSeekFind[]     @relation("HideAndSeekFindSeeker")
+  lprSubmissions        LprSubmission[]       @relation("LprSubmittedBy")
+  lprReviews            LprSubmission[]       @relation("LprReviewedBy")
 
   @@index([status])
 }
@@ -378,4 +380,40 @@ model ExpiringMessage {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+// --- Модуль "LPR" (Этап 2, backend/src/modules/lpr/, ТЗ гл. 3.4) ----------
+// Ключ модуля в реестре — "lpr-scoring" (см. ModuleDefinition.key выше).
+// Распознавание номера — через стороннее платное API (см.
+// docs/DECISIONS.md, "LPR — бюджетный путь"), не собственная модель.
+// Низкая уверенность распознавания → PENDING, ждёт ручной модерации в
+// web-admin (ТЗ 3.7 "ручная модерация спорных распознаваний"), баллы
+// начисляются только при CONFIRMED.
+enum LprSubmissionStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+model LprSubmission {
+  id                 String              @id @default(uuid())
+  submittedByUserId  String
+  submittedBy        User                @relation("LprSubmittedBy", fields: [submittedByUserId], references: [id])
+  storageKey         String // фото в StorageAdapter (см. backend/src/media/storage) — переиспользуем, не своё хранилище
+  mimeType           String
+  sizeBytes          Int
+  iv                 String // AES-256-GCM initialization vector (base64) — тот же media-crypto.util, что ChatMedia
+  authTag            String // AES-256-GCM auth tag (base64)
+  detectedPlate      String?
+  confidence         Float? // 0..1, как вернул LprAdapter
+  status             LprSubmissionStatus @default(PENDING)
+  points             Int?
+  statEventId        String?             @unique
+  reviewedByUserId   String?
+  reviewedBy         User?               @relation("LprReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt         DateTime?
+  createdAt          DateTime            @default(now())
+
+  @@index([submittedByUserId])
+  @@index([status])
 }

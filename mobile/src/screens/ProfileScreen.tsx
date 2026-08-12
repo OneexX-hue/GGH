@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { Text, TextInput, Button, Switch, HelperText, Chip, Divider } from 'react-native-paper';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth-context';
 import { apiFetch, ApiError } from '../api';
+import type { RootStackParamList } from '../navigation';
 
 interface Me {
   id: string;
@@ -21,7 +23,9 @@ interface Vehicle {
   isPlatePublic: boolean;
 }
 
-export function ProfileScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
+export function ProfileScreen({ navigation }: Props) {
   const { token, logout } = useAuth();
   const [me, setMe] = useState<Me | null>(null);
   const [displayName, setDisplayName] = useState('');
@@ -145,6 +149,9 @@ export function ProfileScreen() {
           </View>
           <Button mode="outlined" onPress={onAddVehicle} style={styles.button}>
             ➕ Добавить автомобиль
+          </Button>
+          <Button mode="text" onPress={() => navigation.navigate('LprScan')} style={styles.button}>
+            🚘 Заработать баллы за фото номера
           </Button>
         </View>
       }

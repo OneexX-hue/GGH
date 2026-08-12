@@ -18,6 +18,6 @@ import { LocalFilesystemStorageAdapter } from './storage/local-filesystem-storag
   ],
   providers: [MediaService, { provide: STORAGE_ADAPTER, useClass: LocalFilesystemStorageAdapter }],
   controllers: [MediaController],
-  exports: [MediaService],
+  exports: [MediaService, STORAGE_ADAPTER],
 })
 export class MediaModule {}

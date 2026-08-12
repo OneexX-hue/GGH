@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: '/modules', label: 'Модули', icon: '🧩' },
   { href: '/quests', label: 'Квесты', icon: '🗺️' },
   { href: '/hide-and-seek', label: 'Прятки', icon: '🙈' },
+  { href: '/lpr', label: 'Номера', icon: '🚘' },
   { href: '/moderation', label: 'Модерация', icon: '💬' },
   { href: '/security', label: 'Безопасность', icon: <ShieldLockIcon size={16} /> },
 ];
