@@ -119,11 +119,11 @@ export function QuestDetailScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   content: { padding: 16 },
-  checkpointRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.09)' },
-  checkpointTitle: { color: '#f2f5f7', fontSize: 16, marginBottom: 8 },
-  points: { color: '#7f8993', fontSize: 14 },
+  checkpointRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.085)' },
+  checkpointTitle: { color: '#f4f6f8', fontSize: 16, marginBottom: 8 },
+  points: { color: '#8e979f', fontSize: 14 },
   done: { color: '#93bda2', fontWeight: '600' },
   redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1 },
@@ -132,10 +132,10 @@ const styles = StyleSheet.create({
   divider: { marginBottom: 20 },
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  medalAvatar: { backgroundColor: '#0d141b' },
+  medalAvatar: { backgroundColor: '#0b0d10' },
   medalLabel: { fontSize: 16 },
-  leaderName: { flex: 1, color: '#f2f5f7' },
-  leaderPoints: { color: '#f2f5f7', fontWeight: '700' },
-  dim: { color: '#7f8993' },
+  leaderName: { flex: 1, color: '#f4f6f8' },
+  leaderPoints: { color: '#f4f6f8', fontWeight: '700' },
+  dim: { color: '#8e979f' },
   success: { color: '#93bda2' },
 });

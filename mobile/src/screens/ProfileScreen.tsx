@@ -158,7 +158,7 @@ export function ProfileScreen() {
       )}
       ListEmptyComponent={<Text style={styles.dim}>Пока нет добавленных автомобилей</Text>}
       ListFooterComponent={
-        <Button mode="text" textColor="#e45f54" onPress={() => logout()} style={styles.logoutButton}>
+        <Button mode="text" textColor="#e5483c" onPress={() => logout()} style={styles.logoutButton}>
           Выйти
         </Button>
       }
@@ -167,7 +167,7 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   content: { padding: 24 },
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   button: { borderRadius: 8, marginTop: 4 },
   divider: { marginVertical: 24 },
   logoutButton: { marginTop: 24, marginBottom: 24 },
-  dim: { color: '#7f8993', marginBottom: 4 },
-  vehicleRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.09)' },
-  vehicleText: { color: '#f2f5f7' },
+  dim: { color: '#8e979f', marginBottom: 4 },
+  vehicleRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.085)' },
+  vehicleText: { color: '#f4f6f8' },
 });

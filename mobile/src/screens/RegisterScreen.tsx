@@ -65,7 +65,7 @@ export function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#05090d' },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, backgroundColor: '#050506' },
   title: { marginBottom: 20, textAlign: 'center', fontWeight: '700' },
   input: { marginBottom: 12 },
   button: { marginTop: 8, borderRadius: 8 },

@@ -106,11 +106,11 @@ function initials(name: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#05090d', gap: 12 },
+  container: { flex: 1, backgroundColor: '#050506' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#050506', gap: 12 },
   row: { paddingHorizontal: 16, alignItems: 'center' },
   badge: { alignSelf: 'center' },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  dim: { color: '#7f8993', textAlign: 'center', marginTop: 8 },
-  error: { color: '#e45f54', textAlign: 'center', marginVertical: 8 },
+  dim: { color: '#8e979f', textAlign: 'center', marginTop: 8 },
+  error: { color: '#e5483c', textAlign: 'center', marginVertical: 8 },
 });

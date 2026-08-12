@@ -94,10 +94,10 @@ export function HideAndSeekListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   list: { paddingVertical: 8 },
   row: { paddingHorizontal: 16 },
   statusRow: { marginTop: 6, gap: 6, alignItems: 'flex-start' },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  dim: { color: '#7f8993' },
+  dim: { color: '#8e979f' },
 });

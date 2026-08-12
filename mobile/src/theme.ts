@@ -2,22 +2,26 @@ import { MD3DarkTheme } from 'react-native-paper';
 import { DarkTheme as NavigationDarkTheme } from '@react-navigation/native';
 
 // Единая палитра с web-admin (см. web-admin/app/globals.css) —
-// перенесена из пользовательского "Secret Chat UI Kit" (docs/LICENSING.md,
-// раздел "«Secret Chat UI Kit»"): глубокий сине-чёрный фон + мягкий
-// голубой акцент, чтобы клиентское приложение и админ-панель считывались
-// как один продукт.
+// перенесена из пользовательского "Secret Chat UI Kit", актуальная
+// версия из ветки claude/design-exact-copy-339e9w (src/css/tokens.css):
+// графитово-чёрный фон с нейтральным (не синим) почти-белым акцентом,
+// чтобы клиентское приложение и админ-панель считывались как один
+// продукт.
 export const colors = {
-  primary: '#8ab7d8',
-  onPrimary: '#061019',
-  background: '#05090d',
-  surface: '#080d12',
-  surfaceVariant: '#0d141b',
-  onSurface: '#f2f5f7',
-  onSurfaceVariant: '#7f8993',
-  outline: 'rgba(255,255,255,0.09)',
-  error: '#e45f54',
+  primary: '#e8edf2',
+  onPrimary: '#14171b',
+  background: '#050506',
+  surface: '#08090b',
+  surfaceVariant: '#0b0d10',
+  surfaceElevated: '#14181c',
+  onSurface: '#f4f6f8',
+  onSurfaceVariant: '#8e979f',
+  outline: 'rgba(255,255,255,0.085)',
+  error: '#e5483c',
   onError: '#1a0806',
   success: '#93bda2',
+  bubbleOut: '#24272b',
+  bubbleIn: '#202226',
 };
 
 export const paperTheme = {

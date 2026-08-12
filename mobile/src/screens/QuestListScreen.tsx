@@ -93,11 +93,11 @@ export function QuestListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   list: { paddingVertical: 8 },
   row: { paddingHorizontal: 16 },
   progressBlock: { marginTop: 4, gap: 6 },
   progressBar: { borderRadius: 4, height: 6 },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
-  dim: { color: '#7f8993' },
+  dim: { color: '#8e979f' },
 });

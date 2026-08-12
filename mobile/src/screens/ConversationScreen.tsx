@@ -209,7 +209,7 @@ export function ConversationScreen({ route, navigation }: Props) {
           anchor={
             <IconButton
               icon={(props) => (
-                <Icon name="timer" size={props.size * 0.75} color={ttlSeconds ? '#8ab7d8' : props.color} />
+                <Icon name="timer" size={props.size * 0.75} color={ttlSeconds ? '#e8edf2' : props.color} />
               )}
               mode="outlined"
               onPress={() => setTtlMenuVisible(true)}
@@ -249,17 +249,17 @@ export function ConversationScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   list: { flex: 1, paddingHorizontal: 12 },
   bubbleRow: { flexDirection: 'row', marginVertical: 4 },
   bubbleRowMine: { justifyContent: 'flex-end' },
   bubble: { maxWidth: '80%', borderRadius: 14, padding: 10 },
   mediaBubble: { maxWidth: '80%', borderRadius: 14, padding: 6 },
-  bubbleMine: { backgroundColor: '#0d141b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-end' },
-  bubbleTheirs: { backgroundColor: '#0d141b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-start' },
-  author: { color: '#8ab7d8', fontSize: 12, marginBottom: 2 },
-  textMine: { color: '#f2f5f7', fontSize: 15 },
-  textTheirs: { color: '#f2f5f7', fontSize: 15 },
+  bubbleMine: { backgroundColor: '#24272b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-end' },
+  bubbleTheirs: { backgroundColor: '#202226', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-start' },
+  author: { color: '#e8edf2', fontSize: 12, marginBottom: 2 },
+  textMine: { color: '#f4f6f8', fontSize: 15 },
+  textTheirs: { color: '#f4f6f8', fontSize: 15 },
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   timerRing: {
     width: 26,
@@ -270,16 +270,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timerRingText: { fontSize: 9, color: '#f2f5f7', fontWeight: '700' },
+  timerRingText: { fontSize: 9, color: '#f4f6f8', fontWeight: '700' },
   ttlBadge: { fontSize: 10.5, opacity: 0.75, flexShrink: 1 },
-  ttlBadgeMine: { color: '#7f8993' },
-  ttlBadgeTheirs: { color: '#7f8993' },
+  ttlBadgeMine: { color: '#8e979f' },
+  ttlBadgeTheirs: { color: '#8e979f' },
   inputRow: {
     flexDirection: 'row',
     padding: 8,
     gap: 4,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.09)',
+    borderTopColor: 'rgba(255,255,255,0.085)',
     alignItems: 'center',
   },
   input: {

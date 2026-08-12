@@ -109,9 +109,9 @@ export function HideAndSeekDetailScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#05090d' },
+  container: { flex: 1, backgroundColor: '#050506' },
   content: { padding: 16 },
-  infoText: { color: '#f2f5f7', fontSize: 15, marginBottom: 12 },
+  infoText: { color: '#f4f6f8', fontSize: 15, marginBottom: 12 },
   doneText: { color: '#93bda2', fontSize: 15, marginBottom: 12 },
   redeemRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   input: { flex: 1 },
@@ -120,8 +120,8 @@ const styles = StyleSheet.create({
   sectionTitle: { marginBottom: 12, fontWeight: '700' },
   leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   medal: { width: 28, fontSize: 16 },
-  leaderName: { flex: 1, color: '#f2f5f7' },
-  leaderPoints: { color: '#f2f5f7', fontWeight: '700' },
-  dim: { color: '#7f8993' },
+  leaderName: { flex: 1, color: '#f4f6f8' },
+  leaderPoints: { color: '#f4f6f8', fontWeight: '700' },
+  dim: { color: '#8e979f' },
   success: { color: '#93bda2' },
 });

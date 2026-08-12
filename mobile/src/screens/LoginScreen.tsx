@@ -82,7 +82,7 @@ export function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#05090d' },
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#050506' },
   brandMark: { alignItems: 'center', marginBottom: 6 },
   title: { textAlign: 'center', marginBottom: 24, fontWeight: '700' },
   input: { marginBottom: 12 },
