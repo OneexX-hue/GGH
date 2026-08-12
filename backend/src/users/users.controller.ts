@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
+import { RegisterPushTokenDto } from '../push/dto/register-push-token.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
@@ -30,6 +31,11 @@ export class UsersController {
   @Get('me/vehicles')
   myVehicles(@CurrentUser() user: AuthenticatedUser) {
     return this.usersService.listVehicles(user.userId);
+  }
+
+  @Post('me/push-token')
+  registerPushToken(@CurrentUser() user: AuthenticatedUser, @Body() dto: RegisterPushTokenDto) {
+    return this.usersService.registerPushToken(user.userId, dto.token);
   }
 
   // Доступен любому авторизованному участнику (без users.manage) — нужен,

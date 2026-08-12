@@ -76,6 +76,12 @@ GPL/AGPL/сильный copyleft без явного одобрения чело
 отдельный due diligence не проведён — см. `docs/DECISIONS.md`, "Водяной
 знак на видео (ffmpeg) — не решено".
 
+### Push-уведомления, проверено 12.08.2026 по полю `license` в package.json на npm registry
+
+| Компонент | Лицензия | Комментарий |
+|---|---|---|
+| `expo-notifications` (mobile) | MIT | Часть Expo SDK, отправка через Expo Push API (`exp.host`) — не нужен отдельный APNs/FCM ключ на этом этапе |
+
 ### Хранилище медиа — S3-совместимый адаптер, проверено 12.08.2026 по полю `license` в package.json на npm registry
 
 | Компонент | Лицензия | Комментарий |

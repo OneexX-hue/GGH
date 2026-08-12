@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ModulesRegistryService } from '../../modules-registry/modules-registry.service';
 import { ChatBridgeService } from '../../chat-bridge/chat-bridge.service';
+import { PushNotificationService } from '../../push/push-notification.service';
 
 const MODULE_KEY = 'auto-quest';
 
@@ -17,6 +18,7 @@ export class QuestParticipationService {
     private readonly prisma: PrismaService,
     private readonly modulesRegistry: ModulesRegistryService,
     private readonly chatBridge: ChatBridgeService,
+    private readonly push: PushNotificationService,
   ) {}
 
   async listActive(userId: string) {
@@ -89,6 +91,11 @@ export class QuestParticipationService {
     }
 
     void this.announceRedemption(userId, result.checkpoint, result.quest);
+    void this.push.sendToUser(
+      userId,
+      'Чекпоинт пройден',
+      `«${result.checkpoint.title}» — начислено ${result.checkpoint.points} баллов`,
+    );
 
     return { checkpointId: result.checkpoint.id, questId: result.quest.id, points: result.checkpoint.points };
   }

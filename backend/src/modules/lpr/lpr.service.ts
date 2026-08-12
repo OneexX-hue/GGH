@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ModulesRegistryService } from '../../modules-registry/modules-registry.service';
 import { encryptMedia, decryptMedia } from '../../media/media-crypto.util';
 import { STORAGE_ADAPTER, StorageAdapter } from '../../media/storage/storage-adapter.interface';
+import { PushNotificationService } from '../../push/push-notification.service';
 import { LPR_ADAPTER, LprAdapter, LprNotConfiguredError } from './adapters/lpr-adapter.interface';
 
 const MODULE_KEY = 'lpr-scoring';
@@ -24,6 +25,7 @@ export class LprService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly modulesRegistry: ModulesRegistryService,
+    private readonly push: PushNotificationService,
     @Inject(LPR_ADAPTER) private readonly adapter: LprAdapter,
     @Inject(STORAGE_ADAPTER) private readonly storage: StorageAdapter,
   ) {
@@ -93,6 +95,14 @@ export class LprService {
       });
     });
 
+    if (autoConfirm) {
+      void this.push.sendToUser(
+        userId,
+        'Номер распознан',
+        `${recognition.plate}: начислено ${submission.points} баллов`,
+      );
+    }
+
     return this.toDto(submission);
   }
 
@@ -133,6 +143,7 @@ export class LprService {
         where: { id },
         data: { status: LprSubmissionStatus.REJECTED, reviewedByUserId: reviewerUserId, reviewedAt: new Date() },
       });
+      void this.push.sendToUser(submission.submittedByUserId, 'Заявка отклонена', 'Модератор отклонил распознавание номера');
       return this.toDto(updated);
     }
 
@@ -163,6 +174,7 @@ export class LprService {
       });
     });
 
+    void this.push.sendToUser(submission.submittedByUserId, 'Номер подтверждён', `Начислено ${points} баллов`);
     return this.toDto(updated);
   }
 

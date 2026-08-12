@@ -35,6 +35,7 @@ model User {
 
   rocketChatUserId  String? @unique // связка с профилем в Rocket.Chat (chat-bridge)
   chatAlias         String? @unique // псевдоним, который RC показывает как имя профиля вместо displayName (см. DECISIONS.md)
+  pushToken         String? // Expo push token с мобильного клиента, см. backend/src/push/
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

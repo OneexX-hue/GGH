@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ModulesRegistryService } from '../../modules-registry/modules-registry.service';
 import { ChatBridgeService } from '../../chat-bridge/chat-bridge.service';
+import { PushNotificationService } from '../../push/push-notification.service';
 
 const MODULE_KEY = 'hide-and-seek';
 
@@ -18,6 +19,7 @@ export class RoundParticipationService {
     private readonly prisma: PrismaService,
     private readonly modulesRegistry: ModulesRegistryService,
     private readonly chatBridge: ChatBridgeService,
+    private readonly push: PushNotificationService,
   ) {}
 
   async listActive(userId: string) {
@@ -89,6 +91,7 @@ export class RoundParticipationService {
     }
 
     void this.announceFind(userId, round);
+    void this.push.sendToUser(userId, 'Найден!', `Раунд «${round.title}» — начислено ${round.points} баллов`);
 
     return { roundId: round.id, points: round.points };
   }

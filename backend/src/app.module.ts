@@ -14,6 +14,7 @@ import { MediaModule } from './media/media.module';
 import { AutoQuestModule } from './modules/auto-quest/auto-quest.module';
 import { HideAndSeekModule } from './modules/hide-and-seek/hide-and-seek.module';
 import { LprModule } from './modules/lpr/lpr.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { LprModule } from './modules/lpr/lpr.module';
     AutoQuestModule,
     HideAndSeekModule,
     LprModule,
+    PushModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

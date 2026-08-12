@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { apiFetch } from './api';
+import { registerForPushNotifications } from './push-registration';
 
 const ACCESS_TOKEN_KEY = 'carclub_access_token';
 const REFRESH_TOKEN_KEY = 'carclub_refresh_token';
@@ -79,6 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
+  }, [token]);
+
+  // Регистрируем push-токен один раз за сессию (не на каждое тихое
+  // обновление access-токена раз в REFRESH_INTERVAL_MS — token меняется
+  // при каждом refresh, а re-регистрация того же Expo push-токена смысла
+  // не имеет).
+  const pushRegisteredRef = useRef(false);
+  useEffect(() => {
+    if (!token) {
+      pushRegisteredRef.current = false;
+      return;
+    }
+    if (pushRegisteredRef.current) return;
+    pushRegisteredRef.current = true;
+    registerForPushNotifications(token);
   }, [token]);
 
   async function login(identifier: string, password: string, totpCode?: string) {

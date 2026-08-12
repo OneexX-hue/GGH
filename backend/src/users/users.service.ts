@@ -31,6 +31,11 @@ export class UsersService {
     return user;
   }
 
+  async registerPushToken(userId: string, token: string) {
+    await this.prisma.user.update({ where: { id: userId }, data: { pushToken: token } });
+    return { success: true };
+  }
+
   async list(params: { skip?: number; take?: number }) {
     return this.prisma.user.findMany({
       skip: params.skip ?? 0,
