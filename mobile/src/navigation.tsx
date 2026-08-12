@@ -12,6 +12,7 @@ import { QuestDetailScreen } from './screens/QuestDetailScreen';
 import { HideAndSeekListScreen } from './screens/HideAndSeekListScreen';
 import { HideAndSeekDetailScreen } from './screens/HideAndSeekDetailScreen';
 import { LprScanScreen } from './screens/LprScanScreen';
+import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { navigationTheme } from './theme';
 import type { RoomType } from './rocketchat/types';
 
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   HideAndSeek: undefined;
   HideAndSeekDetail: { roundId: string; title: string; points: number; iAmHider: boolean; found: boolean };
   LprScan: undefined;
+  Leaderboard: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -67,6 +69,7 @@ export function RootNavigator() {
               options={({ route }) => ({ title: route.params.title })}
             />
             <Stack.Screen name="LprScan" component={LprScanScreen} options={{ title: 'Номер авто' }} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: '🏆 Лидерборд' }} />
           </>
         ) : (
           <>

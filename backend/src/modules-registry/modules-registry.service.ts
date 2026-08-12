@@ -114,6 +114,24 @@ export class ModulesRegistryService {
     return moduleDef;
   }
 
+  /** Топ участников по баллам, начисленным ЛЮБЫМ модулем (сводный лидерборд клуба). */
+  async overallLeaderboard(limit = 20) {
+    const grouped = await this.prisma.statEvent.groupBy({
+      by: ['userId'],
+      _sum: { points: true },
+      orderBy: { _sum: { points: 'desc' } },
+      take: limit,
+    });
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: grouped.map((g) => g.userId) } },
+      select: { id: true, displayName: true, avatarUrl: true },
+    });
+    const byId = new Map(users.map((u) => [u.id, u]));
+
+    return grouped.map((g) => ({ user: byId.get(g.userId), points: g._sum.points ?? 0 }));
+  }
+
   /** Топ участников по баллам, начисленным конкретным модулем (за всё время). */
   async leaderboard(key: string, limit = 20) {
     const grouped = await this.prisma.statEvent.groupBy({

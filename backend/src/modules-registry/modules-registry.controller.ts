@@ -37,6 +37,15 @@ export class ModulesRegistryController {
     return this.modulesRegistryService.update(key, dto, user.userId, req.ip);
   }
 
+  // Статичный сегмент раньше динамического :key, иначе Nest резолвит это
+  // как GET /modules/:key/leaderboard с key="leaderboard" (см. тот же
+  // приём в quests.controller.ts). Виден всем авторизованным участникам.
+  @Get('leaderboard/overall')
+  @UseGuards(JwtAuthGuard)
+  overallLeaderboard(@Query('limit') limit?: string) {
+    return this.modulesRegistryService.overallLeaderboard(limit ? Number(limit) : undefined);
+  }
+
   // Лидерборд по модулю виден всем авторизованным участникам, не только
   // модераторам/админам — не за @RequirePermission('modules.manage').
   @Get(':key/leaderboard')

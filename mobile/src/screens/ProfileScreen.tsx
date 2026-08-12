@@ -108,7 +108,7 @@ export function ProfileScreen({ navigation }: Props) {
           </Text>
           {me && (
             <View style={styles.chipRow}>
-              <Chip icon="star-circle-outline" compact>
+              <Chip icon="star-circle-outline" compact onPress={() => navigation.navigate('Leaderboard')}>
                 🏆 {me.pointsTotal} баллов
               </Chip>
               <Chip icon="account-check-outline" compact>
