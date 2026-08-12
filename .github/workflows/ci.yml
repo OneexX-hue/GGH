@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: carclub
+          POSTGRES_PASSWORD: carclub
+          POSTGRES_DB: carclub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U carclub"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: nest build
+        run: npx nest build
+
+      # Моки Prisma/зависимостей — не требуют БД.
+      - name: unit-тесты
+        run: npm test
+
+      - name: миграции + сид тестовой БД
+        env:
+          DATABASE_URL: postgresql://carclub:carclub@localhost:5432/carclub_test?schema=public
+        run: |
+          npx prisma migrate deploy
+          npm run prisma:seed
+
+      # Полный AppModule против carclub_test — Rocket.Chat не поднимается,
+      # chat-bridge работает в штатном no-op режиме (см. test/setup-env.ts).
+      - name: e2e-тесты
+        env:
+          E2E_DATABASE_URL: postgresql://carclub:carclub@localhost:5432/carclub_test?schema=public
+        run: npm run test:e2e
+
+  web-admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Нативная сборка (EAS/Xcode/Android SDK) намеренно не запускается
+      # здесь — это отдельный процесс через eas-cli с реальными
+      # credentials разработчика (см. mobile/eas.json), не задача обычного
+      # ubuntu-раннера GitHub Actions.
