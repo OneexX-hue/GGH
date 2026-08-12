@@ -16,6 +16,8 @@ export interface RCSubscription {
   fname?: string;
   unread: number;
   alert: boolean;
+  f?: boolean;
+  lastMessage?: { msg?: string };
   _updatedAt: string;
 }
 

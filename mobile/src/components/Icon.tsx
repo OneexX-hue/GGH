@@ -120,7 +120,7 @@ const SHAPES: Record<IconName, (color: string) => React.ReactNode> = {
   x: (c) => <Path key="p" stroke={c} d="m6 6 12 12M18 6 6 18" />,
 };
 
-export function Icon({ name, size = 20, color = '#F2F5F7' }: IconProps) {
+export function Icon({ name, size = 20, color = '#F4F6F8' }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
       {SHAPES[name](color)}

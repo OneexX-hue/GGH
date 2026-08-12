@@ -45,6 +45,13 @@ export class RocketChatRestClient {
     return result.update;
   }
 
+  async toggleFavorite(roomId: string, favorite: boolean): Promise<void> {
+    await this.request('rooms.favorite', {
+      method: 'POST',
+      body: { roomId, favorite },
+    });
+  }
+
   async createDirectMessage(username: string): Promise<RCRoom> {
     const result = await this.request<{ room: RCRoom }>('im.create', {
       method: 'POST',
