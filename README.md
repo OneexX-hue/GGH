@@ -55,6 +55,38 @@ npx expo start --dev-client
 ТЗ, `react-native-capture-protection`) требует нативных модулей и,
 соответственно, кастомного Dev Client.
 
+#### Публикация в TestFlight / Google Play internal track (EAS)
+
+`mobile/eas.json` содержит три профиля сборки:
+- `development` — internal distribution, с `expo-dev-client`, для
+  разработки;
+- `preview` — internal distribution (TestFlight-эквивалент/APK для
+  ручной раздачи тестерам), без dev client;
+- `production` — App Store / Google Play (`app-bundle`), с
+  автоинкрементом версии.
+
+Файл **не содержит и не может содержать** реальных credentials — это
+конфиг профилей сборки, а не секреты. Чтобы реально собрать и
+отправить билд, нужны вещи, которые в этой сессии никто не может
+создать за пользователя:
+
+```bash
+npm install -g eas-cli   # или npx eas-cli
+eas login
+eas build --profile preview --platform all
+eas submit --profile production --platform ios     # нужен Apple Developer
+                                                     # аккаунт + App Store
+                                                     # Connect app record
+eas submit --profile production --platform android  # нужен Google Play
+                                                     # service account JSON
+```
+
+Обязательно перед первым `eas build`: активная подписка Apple Developer
+Program (bundle id `club.carclub.app` уже задан в `app.json`), доступ к
+Google Play Console, и `eas credentials` для привязки/генерации
+подписывающих ключей — этот шаг делает владелец аккаунтов разработчика,
+не описывается в репозитории.
+
 ### Через docker-compose (Postgres + backend + web-admin + Rocket.Chat + Mongo)
 
 ```bash
@@ -130,6 +162,26 @@ cd mobile && npm test
 `jest.config.js` в обоих пакетах намеренно использует `testEnvironment:
 'node'` + `ts-jest` напрямую (не `jest-expo`/`next/jest`) — тестируемые
 модули не тянут за собой ни DOM, ни React Native рантайм.
+
+## Заготовки для продакшен-готовности (Этап 4)
+
+Ниже — черновики/конфиги, которые требуют реального человека для
+завершения (юрист, аккаунты разработчика, устройство, боевая
+инфраструктура) — код их подготовить не может, только заложить основу:
+
+- `docs/legal/privacy-policy-draft.md` — черновик политики
+  конфиденциальности под юридическую проверку, не финальный документ.
+- `mobile/eas.json` — профили сборки EAS для TestFlight/Google Play
+  internal track (без реальных credentials — см. README раздел выше).
+- `docs/qa/device-screen-protection-checklist.md` — чеклист ручной
+  проверки защиты экрана (`FLAG_SECURE`/детект скриншота) на реальных
+  Android/iOS устройствах — ничего в нём не прогонялось в этой сессии,
+  нет физического устройства/эмулятора.
+- `infra/load-test/k6-chat-load.js` — сценарий k6 «регистрация → чат →
+  фото» под условный масштаб ~5000 участников (ТЗ гл. 4). Не
+  прогонялся против реального стенда в этой сессии. `k6` — AGPL-3.0,
+  используется как внешний CLI-инструмент (не встраивается в продукт,
+  не добавлен ни в один `package.json`) — разбор в `docs/LICENSING.md`.
 
 ## Статус реализации
 
