@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/hide-and-seek', label: 'Прятки', icon: '🙈' },
   { href: '/lpr', label: 'Номера', icon: '🚘' },
   { href: '/moderation', label: 'Модерация', icon: '💬' },
+  { href: '/audit-log', label: 'Журнал', icon: '🗒️' },
   { href: '/security', label: 'Безопасность', icon: <ShieldLockIcon size={16} /> },
 ];
 
