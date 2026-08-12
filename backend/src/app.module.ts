@@ -15,6 +15,7 @@ import { AutoQuestModule } from './modules/auto-quest/auto-quest.module';
 import { HideAndSeekModule } from './modules/hide-and-seek/hide-and-seek.module';
 import { LprModule } from './modules/lpr/lpr.module';
 import { PushModule } from './push/push.module';
+import { CallsModule } from './calls/calls.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PushModule } from './push/push.module';
     HideAndSeekModule,
     LprModule,
     PushModule,
+    CallsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
