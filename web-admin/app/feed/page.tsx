@@ -1,0 +1,90 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../lib/auth-context';
+import { apiFetch, ApiError } from '../../lib/api';
+
+interface FeedEntry {
+  id: string;
+  moduleKey: string;
+  points: number;
+  reason: string;
+  occurredAt: string;
+  user: { id: string; displayName: string };
+}
+
+const PAGE_SIZE = 30;
+
+export default function FeedPage() {
+  const { token, loading } = useAuth();
+  const router = useRouter();
+  const [entries, setEntries] = useState<FeedEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  function loadPage(currentToken: string, skip: number) {
+    apiFetch<FeedEntry[]>(`/modules/feed/recent?skip=${skip}&take=${PAGE_SIZE}`, { token: currentToken })
+      .then((page) => {
+        setEntries((prev) => (skip === 0 ? page : [...prev, ...page]));
+        setHasMore(page.length === PAGE_SIZE);
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : 'Ошибка загрузки'));
+  }
+
+  useEffect(() => {
+    if (loading) return;
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+    loadPage(token, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, loading, router]);
+
+  return (
+    <div>
+      <h1 className="page-title">📰 Лента событий</h1>
+      <p className="page-subtitle">Последние начисления баллов по всем игровым модулям сразу</p>
+
+      {error && <p className="error">⚠️ {error}</p>}
+
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Участник</th>
+              <th>Модуль</th>
+              <th>Событие</th>
+              <th>Баллы</th>
+              <th>Когда</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry) => (
+              <tr key={entry.id}>
+                <td>{entry.user.displayName}</td>
+                <td className="text-muted-foreground">{entry.moduleKey}</td>
+                <td>{entry.reason}</td>
+                <td>+{entry.points}</td>
+                <td className="text-muted-foreground">{new Date(entry.occurredAt).toLocaleString()}</td>
+              </tr>
+            ))}
+            {entries.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-muted-foreground">
+                  Событий пока нет
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {hasMore && entries.length > 0 && (
+          <button className="btn-outline" style={{ marginTop: 16 }} onClick={() => token && loadPage(token, entries.length)}>
+            Показать ещё
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

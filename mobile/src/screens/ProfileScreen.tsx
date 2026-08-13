@@ -111,6 +111,9 @@ export function ProfileScreen({ navigation }: Props) {
               <Chip icon="star-circle-outline" compact onPress={() => navigation.navigate('Leaderboard')}>
                 🏆 {me.pointsTotal} баллов
               </Chip>
+              <Chip icon="newspaper-variant-outline" compact onPress={() => navigation.navigate('Feed')}>
+                📰 Лента
+              </Chip>
               <Chip icon="account-check-outline" compact>
                 {me.status}
               </Chip>

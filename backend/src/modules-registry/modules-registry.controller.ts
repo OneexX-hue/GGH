@@ -46,6 +46,16 @@ export class ModulesRegistryController {
     return this.modulesRegistryService.overallLeaderboard(limit ? Number(limit) : undefined);
   }
 
+  /** Кросс-модульная лента последних событий (баллы всех модулей сразу). */
+  @Get('feed/recent')
+  @UseGuards(JwtAuthGuard)
+  recentFeed(@Query('skip') skip?: string, @Query('take') take?: string) {
+    return this.modulesRegistryService.recentFeed({
+      skip: skip ? Number(skip) : undefined,
+      take: take ? Number(take) : undefined,
+    });
+  }
+
   // Лидерборд по модулю виден всем авторизованным участникам, не только
   // модераторам/админам — не за @RequirePermission('modules.manage').
   @Get(':key/leaderboard')

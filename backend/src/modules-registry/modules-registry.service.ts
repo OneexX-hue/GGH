@@ -150,4 +150,26 @@ export class ModulesRegistryService {
 
     return grouped.map((g) => ({ user: byId.get(g.userId), points: g._sum.points ?? 0 }));
   }
+
+  /**
+   * Кросс-модульная лента (ТЗ гл. 3.6): последние начисления баллов по
+   * всем модулям сразу, не по одному — переиспользует уже готовый
+   * человекочитаемый текст StatEvent.reason (тот же, что использовался
+   * при формировании анонса в чат каждым модулем).
+   */
+  async recentFeed(params: { skip?: number; take?: number } = {}) {
+    return this.prisma.statEvent.findMany({
+      orderBy: { occurredAt: 'desc' },
+      skip: params.skip ?? 0,
+      take: params.take ?? 30,
+      select: {
+        id: true,
+        moduleKey: true,
+        points: true,
+        reason: true,
+        occurredAt: true,
+        user: { select: { id: true, displayName: true } },
+      },
+    });
+  }
 }
