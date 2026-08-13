@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '../lib/auth-context';
 import { ChatProvider } from '../lib/chat-context';
+import { CallsProvider } from '../lib/calls/calls-context';
+import { CallOverlay } from '../components/CallOverlay';
 import { NavBar } from './nav-bar';
 import './globals.css';
 
@@ -20,10 +22,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AuthProvider>
           <ChatProvider>
-            <div className="layout">
-              <NavBar />
-              <main className="content">{children}</main>
-            </div>
+            <CallsProvider>
+              <div className="layout">
+                <NavBar />
+                <main className="content">{children}</main>
+              </div>
+              <CallOverlay />
+            </CallsProvider>
           </ChatProvider>
         </AuthProvider>
       </body>

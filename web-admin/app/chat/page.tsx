@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { useChat } from '../../lib/chat-context';
+import { useCalls } from '../../lib/calls/calls-context';
 import { apiFetch } from '../../lib/api';
 import { ChatAvatar } from '../../components/chat-avatar';
 import {
@@ -64,11 +65,13 @@ export default function ChatPage() {
   const { token, loading } = useAuth();
   const router = useRouter();
   const { ready, error: chatError, restClient, session } = useChat();
+  const calls = useCalls();
 
   const [rooms, setRooms] = useState<RCSubscription[]>([]);
-  const [selected, setSelected] = useState<{ roomId: string; roomType: RoomType; title: string; isGroup: boolean } | null>(
-    null,
-  );
+  const [selected, setSelected] = useState<
+    { roomId: string; roomType: RoomType; title: string; isGroup: boolean; peerUserId?: string | null } | null
+  >(null);
+  const [resolvingPeer, setResolvingPeer] = useState(false);
   const [messages, setMessages] = useState<RCMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +128,26 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.roomId]);
 
+  // Звонки в backend/src/calls адресуются реальному userId участника, не
+  // Rocket.Chat id/псевдониму (см. docs/DECISIONS.md, "WebRTC-звонки —
+  // архитектура") — для уже существующих (не только что созданных через
+  // "Новый чат") личных чатов реальный userId неизвестен заранее, поэтому
+  // резолвим его по RC-имени пользователя из первого чужого сообщения в
+  // истории через /users/directory.
+  useEffect(() => {
+    if (!selected || selected.roomType !== 'd' || selected.peerUserId !== undefined) return;
+    const theirMessage = messages.find((m) => session && m.u._id !== session.rocketChatUserId);
+    if (!theirMessage) return;
+    setResolvingPeer(true);
+    calls
+      .resolvePeerUserIdByRcUsername(theirMessage.u.username)
+      .then((peerUserId) => {
+        setSelected((prev) => (prev && prev.roomId === selected.roomId ? { ...prev, peerUserId } : prev));
+      })
+      .finally(() => setResolvingPeer(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, messages, session]);
+
   function toggleMute(roomId: string) {
     setMutedRooms((prev) => {
       const next = new Set(prev);
@@ -169,7 +192,7 @@ export default function ChatPage() {
     try {
       const room = await restClient.createDirectMessage(member.rocketChatUsername);
       setNewChatOpen(false);
-      setSelected({ roomId: room._id, roomType: room.t, title: member.displayName, isGroup: false });
+      setSelected({ roomId: room._id, roomType: room.t, title: member.displayName, isGroup: false, peerUserId: member.id });
       loadRooms();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось создать чат');
@@ -205,6 +228,14 @@ export default function ChatPage() {
 
   const selectedRoom = rooms.find((r) => r.rid === selected?.roomId);
   const selectedMuted = selected ? mutedRooms.has(selected.roomId) : false;
+
+  let callDisabledReason: string | null = null;
+  if (!selected || selected.roomType !== 'd') callDisabledReason = 'Звонки доступны только в личных чатах';
+  else if (!calls.ready) callDisabledReason = 'Подключаемся к сигнальному серверу…';
+  else if (calls.status !== 'idle') callDisabledReason = 'Уже есть активный звонок';
+  else if (resolvingPeer) callDisabledReason = 'Определяем собеседника…';
+  else if (!selected.peerUserId) callDisabledReason = 'Не удалось определить собеседника для звонка';
+  const canCall = !callDisabledReason;
 
   return (
     <div>
@@ -287,7 +318,15 @@ export default function ChatPage() {
                       key={r._id}
                       type="button"
                       className={`chat-row${selected?.roomId === r.rid ? ' is-active' : ''}`}
-                      onClick={() => setSelected({ roomId: r.rid, roomType: r.t, title: name, isGroup })}
+                      onClick={() =>
+                        setSelected({
+                          roomId: r.rid,
+                          roomType: r.t,
+                          title: name,
+                          isGroup,
+                          peerUserId: r.t === 'd' ? undefined : null,
+                        })
+                      }
                     >
                       <ChatAvatar id={r.rid} isGroup={isGroup} size={38} className="chat-row-avatar" />
                       <span className="chat-row-body">
@@ -378,18 +417,20 @@ export default function ChatPage() {
                   <button
                     className="chat-ghost-btn"
                     type="button"
-                    disabled
-                    title="Аудиозвонок — скоро (WebRTC ещё не подключён)"
-                    aria-label="Аудиозвонок недоступен"
+                    disabled={!canCall}
+                    title={callDisabledReason ?? 'Аудиозвонок'}
+                    aria-label="Аудиозвонок"
+                    onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'audio')}
                   >
                     <PhoneIcon size={17} />
                   </button>
                   <button
                     className="chat-ghost-btn"
                     type="button"
-                    disabled
-                    title="Видеозвонок — скоро (WebRTC ещё не подключён)"
-                    aria-label="Видеозвонок недоступен"
+                    disabled={!canCall}
+                    title={callDisabledReason ?? 'Видеозвонок'}
+                    aria-label="Видеозвонок"
+                    onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'video')}
                   >
                     <VideoIcon size={17} />
                   </button>
