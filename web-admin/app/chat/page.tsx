@@ -64,7 +64,7 @@ function formatTime(iso: string): string {
 export default function ChatPage() {
   const { token, loading } = useAuth();
   const router = useRouter();
-  const { ready, error: chatError, restClient, session } = useChat();
+  const { ready, error: chatError, restClient, realtimeClient, session } = useChat();
   const calls = useCalls();
 
   const [rooms, setRooms] = useState<RCSubscription[]>([]);
@@ -85,6 +85,7 @@ export default function ChatPage() {
   const [directory, setDirectory] = useState<DirectoryMember[]>([]);
   const [creatingChatWith, setCreatingChatWith] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (loading) return;
@@ -110,23 +111,44 @@ export default function ChatPage() {
     if (!restClient || !selected) return;
     restClient
       .getHistory(selected.roomType, selected.roomId)
-      .then((msgs) => setMessages([...msgs].reverse()))
+      .then((msgs) => {
+        const ordered = [...msgs].reverse();
+        ordered.forEach((m) => seenIds.current.add(m._id));
+        setMessages(ordered);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Не удалось загрузить сообщения'));
   }, [restClient, selected]);
 
+  // Realtime (DDP-подписка stream-room-messages) вместо polling — если
+  // realtimeClient недоступен (WS не поднялся, см. lib/chat-context.tsx),
+  // деградируем до polling раз в 4с, не падаем молча.
   useEffect(() => {
+    seenIds.current = new Set();
     loadMessages();
     setChatSearchOpen(false);
     setChatSearchQuery('');
     if (pollRef.current) clearInterval(pollRef.current);
-    if (selected) {
-      pollRef.current = setInterval(loadMessages, POLL_INTERVAL_MS);
+
+    if (!selected) return;
+
+    if (realtimeClient) {
+      const unsubscribe = realtimeClient.onRoomMessage(selected.roomId, (message) => {
+        if (seenIds.current.has(message._id)) return;
+        seenIds.current.add(message._id);
+        setMessages((prev) => [...prev, message]);
+      });
+      return () => {
+        unsubscribe();
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
     }
+
+    pollRef.current = setInterval(loadMessages, POLL_INTERVAL_MS);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.roomId]);
+  }, [selected?.roomId, realtimeClient]);
 
   // Звонки в backend/src/calls адресуются реальному userId участника, не
   // Rocket.Chat id/псевдониму (см. docs/DECISIONS.md, "WebRTC-звонки —
@@ -241,9 +263,11 @@ export default function ChatPage() {
     <div>
       <h1 className="page-title">💬 Чат</h1>
       <p className="page-subtitle">
-        Веб-версия чата участника (ТЗ 5.2) — та же учётная запись, что и в мобильном приложении. Обновление
-        сообщений — раз в {POLL_INTERVAL_MS / 1000}с, не мгновенный realtime. Отправка фото/видео и таймер
-        самоуничтожения — пока только в мобильном приложении.
+        Веб-версия чата участника (ТЗ 5.2) — та же учётная запись, что и в мобильном приложении.{' '}
+        {realtimeClient
+          ? 'Новые сообщения приходят в реальном времени.'
+          : `Realtime-соединение недоступно — обновление сообщений раз в ${POLL_INTERVAL_MS / 1000}с.`}{' '}
+        Отправка фото/видео и таймер самоуничтожения — пока только в мобильном приложении.
       </p>
 
       {error && <p className="error">⚠️ {error}</p>}
