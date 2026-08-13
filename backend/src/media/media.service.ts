@@ -73,7 +73,13 @@ export class MediaService {
     const payload: MediaTokenPayload = { sub: viewerUserId, mediaId, purpose: MEDIA_TOKEN_PURPOSE };
     const token = this.jwt.sign(payload, { expiresIn: ACCESS_TOKEN_TTL_SECONDS });
     const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000).toISOString();
-    return { token, expiresAt };
+
+    // Для видео сервер не встраивает водяной знак в байты (см. VIDEO-ветку
+    // ниже, "Водяной знак на видео" — решено делать клиентским оверлеем,
+    // docs/DECISIONS.md) — клиенту нужно имя зрителя, чтобы нарисовать тот
+    // же текст поверх плеера, что applyWatermark() рисует поверх фото.
+    const viewer = await this.prisma.user.findUnique({ where: { id: viewerUserId } });
+    return { token, expiresAt, viewerDisplayName: viewer?.displayName ?? viewerUserId };
   }
 
   async getContent(mediaId: string, token: string): Promise<{ buffer: Buffer; mimeType: string }> {

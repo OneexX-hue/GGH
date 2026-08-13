@@ -8,4 +8,5 @@ export interface UploadMediaResult {
 export interface MediaAccessTokenResult {
   token: string;
   expiresAt: string;
+  viewerDisplayName: string;
 }

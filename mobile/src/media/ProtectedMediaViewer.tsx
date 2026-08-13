@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Image, Text, Pressable, StyleSheet, ActivityIndicator, Linking, Platform } from 'react-native';
+import { View, Image, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { CaptureProtection, CaptureEventType } from 'react-native-capture-protection';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import type { EmitterSubscription } from 'react-native';
 import { useAuth } from '../auth-context';
 import { getMediaAccessToken, mediaContentUrl, reportMediaAccessEvent } from './media-client';
 import type { MediaKind } from './types';
 import { colors } from '../theme';
-import { Icon } from '../components/Icon';
 
 interface Props {
   mediaId: string;
@@ -15,9 +15,12 @@ interface Props {
 
 /**
  * Защищённый просмотрщик медиа (ТЗ гл. 3.3): получает короткоживущий
- * access-токен у нашего backend, показывает контент только по нему
- * (не системной галереей — картинка/видео стримится напрямую с водяным
- * знаком, отрендеренным сервером на лету, см. backend/src/media/media.service.ts).
+ * access-токен у нашего backend, показывает контент только по нему —
+ * не системной галереей/плеером. Фото стримится с водяным знаком,
+ * отрендеренным сервером на лету (см. backend/src/media/media.service.ts);
+ * видео сервер не перекодирует (нет ffmpeg, см. docs/DECISIONS.md),
+ * водяной знак для него — клиентский UI-оверлей поверх плеера
+ * (см. ProtectedVideoPlayer ниже).
  *
  * Защита экрана на время показа:
  * - Android: `CaptureProtection.prevent({screenshot:true, record:true})`
@@ -32,6 +35,7 @@ interface Props {
 export function ProtectedMediaViewer({ mediaId, kind }: Props) {
   const { token: authToken } = useAuth();
   const [contentUrl, setContentUrl] = useState<string | null>(null);
+  const [viewerDisplayName, setViewerDisplayName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listenerRef = useRef<EmitterSubscription | undefined>(undefined);
 
@@ -40,8 +44,10 @@ export function ProtectedMediaViewer({ mediaId, kind }: Props) {
     let cancelled = false;
 
     getMediaAccessToken(mediaId, authToken)
-      .then(({ token }) => {
-        if (!cancelled) setContentUrl(mediaContentUrl(mediaId, token));
+      .then(({ token, viewerDisplayName: name }) => {
+        if (cancelled) return;
+        setContentUrl(mediaContentUrl(mediaId, token));
+        setViewerDisplayName(name);
       })
       .catch(() => {
         if (!cancelled) setError('Не удалось загрузить медиа');
@@ -88,17 +94,48 @@ export function ProtectedMediaViewer({ mediaId, kind }: Props) {
     return <Image source={{ uri: contentUrl }} style={styles.photo} resizeMode="cover" />;
   }
 
-  // Видео: полноценный встроенный плеер — отдельная итерация (нужен
-  // expo-video/react-native-video с собственным due diligence, см.
-  // docs/DECISIONS.md). Пока открываем в системном плеере по токенизированной
-  // ссылке — тоже кастомный путь (не сохраняется в галерею приложением),
-  // но не такой же защищённый просмотр, как для фото.
+  return <ProtectedVideoPlayer contentUrl={contentUrl} viewerDisplayName={viewerDisplayName ?? ''} />;
+}
+
+interface VideoPlayerProps {
+  contentUrl: string;
+  viewerDisplayName: string;
+}
+
+/**
+ * Встроенный проигрыватель для видео (не системный плеер — байты не
+ * покидают приложение, та же защита экрана из ProtectedMediaViewer
+ * действует и здесь). Водяной знак — UI-слой поверх плеера (имя
+ * зрителя + текущее время), а не встроен в байты видео: сервер видео
+ * не перекодирует (нет ffmpeg, см. docs/DECISIONS.md, "Водяной знак на
+ * видео"). Оверлей обновляется раз в секунду, пока плеер смонтирован —
+ * при паузе/перемотке остаётся видимым.
+ */
+function ProtectedVideoPlayer({ contentUrl, viewerDisplayName }: VideoPlayerProps) {
+  const player = useVideoPlayer(contentUrl, (p) => {
+    p.loop = false;
+  });
+  const [stampText, setStampText] = useState(() => watermarkStamp(viewerDisplayName));
+
+  useEffect(() => {
+    const interval = setInterval(() => setStampText(watermarkStamp(viewerDisplayName)), 1000);
+    return () => clearInterval(interval);
+  }, [viewerDisplayName]);
+
   return (
-    <Pressable style={styles.videoBox} onPress={() => Linking.openURL(contentUrl)}>
-      <Icon name="video" size={22} color={colors.primary} />
-      <Text style={styles.videoLabel}>Видео — открыть</Text>
-    </Pressable>
+    <View style={styles.videoStage}>
+      <VideoView player={player} style={styles.video} nativeControls allowsFullscreen={false} />
+      <View style={styles.watermark} pointerEvents="none">
+        <Text style={styles.watermarkText}>{stampText}</Text>
+      </View>
+    </View>
   );
+}
+
+// Тот же формат, что серверный водяной знак фото (см.
+// backend/src/media/media.service.ts, applyWatermark): "имя · ISO-время".
+function watermarkStamp(viewerDisplayName: string): string {
+  return `${viewerDisplayName} · ${new Date().toISOString()}`;
 }
 
 const styles = StyleSheet.create({
@@ -111,15 +148,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photo: { width: 220, height: 220, borderRadius: 8, backgroundColor: colors.surfaceVariant },
-  videoBox: {
+  videoStage: {
     width: 220,
-    height: 120,
+    height: 260,
     borderRadius: 8,
-    backgroundColor: colors.surfaceVariant,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
-  videoLabel: { color: colors.primary, fontWeight: '600' },
+  video: { width: '100%', height: '100%' },
+  watermark: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  watermarkText: { color: 'rgba(255,255,255,0.85)', fontSize: 10 },
   error: { color: colors.error, padding: 8, textAlign: 'center' },
 });
