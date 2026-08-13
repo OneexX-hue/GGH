@@ -87,7 +87,7 @@ Google Play Console, и `eas credentials` для привязки/генерац
 подписывающих ключей — этот шаг делает владелец аккаунтов разработчика,
 не описывается в репозитории.
 
-### Через docker-compose (Postgres + backend + web-admin + Rocket.Chat + Mongo)
+### Через docker-compose (Postgres + backend + web-admin + Rocket.Chat + Mongo + coturn)
 
 ```bash
 cd infra
@@ -96,8 +96,16 @@ docker compose up --build
 
 Поднимает всё, включая Rocket.Chat (официальный образ, без лицензии
 Enterprise — см. `docs/DECISIONS.md`) и однонодовый Mongo replica set,
-который он требует. **Первичная настройка Rocket.Chat — вручную,
-разово:**
+который он требует, а также `coturn` — self-hosted STUN/TURN для
+WebRTC-звонков (docs/DECISIONS.md, "WebRTC-звонки — архитектура") с
+статическим dev-паролем (`--lt-cred-mech`, не для прода — см. комментарий
+в `infra/docker-compose.yml`). Без запущенного `coturn` звонки всё
+равно работают через публичный Google STUN — TURN нужен только когда
+прямое P2P-соединение невозможно (строгий NAT). Как и остальной
+`infra/docker-compose.yml`, сервис `coturn` не проверен вживую в этой
+сессии (недоступен демон Docker) — только по синтаксису YAML и
+документации флагов `coturn`. **Первичная настройка Rocket.Chat —
+вручную, разово:**
 
 1. Открыть `http://localhost:3100`, пройти setup wizard, создать
    первого администратора.

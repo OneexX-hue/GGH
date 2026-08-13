@@ -107,6 +107,27 @@
   (без отправки защищённых фото/видео из веба). Для прод-инстанса
   Rocket.Chat требуется явно включить CORS под origin веб-админки —
   см. `docs/DECISIONS.md`.
+- Перенос вёрстки Secret Chat UI Kit (web-admin `/chat` + mobile) —
+  готово: трёхколоночная десктоп-раскладка (список/диалог/панель
+  информации) в web-admin, аватары-силуэты и структура сообщений в
+  mobile — см. `docs/DECISIONS.md`. Честные формулировки вместо кита:
+  «Шифрование» описано как AES-256 at rest + HTTPS/WSS, без ложного
+  заявления о сквозном (E2E) шифровании (по CLAUDE.md, правило 2).
+- Звонки (аудио/видео) — готово: WebRTC 1:1-звонки поверх собственного
+  сигнального WS-шлюза (`backend/src/calls`, `@nestjs/platform-ws`, не
+  socket.io — см. `docs/DECISIONS.md`), клиенты в web-admin и mobile
+  (`react-native-webrtc`), STUN/TURN через self-hosted `coturn` в
+  `infra/docker-compose.yml` (публичный Google STUN — рабочий дефолт и
+  без coturn). Верификация: 8 unit-тестов шлюза + сквозной звонок между
+  двумя реальными браузерными клиентами (Playwright, два независимых
+  контекста, `getUserMedia`/`RTCPeerConnection` с fake-media, живая
+  передача медиа подтверждена) — mobile-клиент проверен только
+  `tsc`/Jest, без живого устройства (в этой песочнице недоступно);
+  `coturn` в docker-compose не проверен вживую (недоступен демон
+  Docker), только по синтаксису и документации флагов. Вне объёма MVP:
+  групповые звонки, push при входящем звонке при закрытом приложении,
+  история звонков, запись, multi-instance масштабирование сигнализации
+  (presence сейчас in-memory на один backend-процесс).
 - Автотесты — backend: готово (Jest unit — auth/users.ban/modules-registry
   начисление баллов; e2e — полный AppModule против отдельной тестовой БД
   на ключевые auth-эндпоинты). web-admin/mobile: готово точечно — не
