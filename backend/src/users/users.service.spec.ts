@@ -64,3 +64,46 @@ describe('UsersService.ban', () => {
     expect(result).not.toHaveProperty('rocketChatUserId');
   });
 });
+
+describe('UsersService.unban', () => {
+  let prisma: any;
+  let auditLog: any;
+  let chatBridge: any;
+  let service: UsersService;
+
+  beforeEach(() => {
+    prisma = { user: { update: jest.fn() } };
+    auditLog = { record: jest.fn().mockResolvedValue(undefined) };
+    chatBridge = { setUserActive: jest.fn().mockResolvedValue(undefined) };
+    service = new UsersService(prisma, auditLog, chatBridge);
+  });
+
+  it('переводит пользователя в ACTIVE и реактивирует его в Rocket.Chat', async () => {
+    prisma.user.update.mockResolvedValue({
+      id: 'user-1',
+      status: 'ACTIVE',
+      rocketChatUserId: 'rc-user-1',
+    });
+
+    await service.unban('user-1', 'admin-1');
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'user-1' }, data: { status: 'ACTIVE' } }),
+    );
+    expect(chatBridge.setUserActive).toHaveBeenCalledWith('rc-user-1', true);
+  });
+
+  it('записывает событие в audit log с действием user.unban', async () => {
+    prisma.user.update.mockResolvedValue({ id: 'user-1', status: 'ACTIVE', rocketChatUserId: null });
+
+    await service.unban('user-1', 'admin-1', '127.0.0.1');
+
+    expect(auditLog.record).toHaveBeenCalledWith({
+      actorUserId: 'admin-1',
+      action: 'user.unban',
+      targetType: 'User',
+      targetId: 'user-1',
+      ipAddress: '127.0.0.1',
+    });
+  });
+});

@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ChatBridgeService, ModerationRoomType } from './chat-bridge.service';
 import { BanSenderDto } from './dto/ban-sender.dto';
+import { MuteSenderDto } from './dto/mute-sender.dto';
+import { ResolveReportDto } from './dto/resolve-report.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { RequirePermission } from '../common/decorators/require-permission.decorator';
@@ -47,5 +49,45 @@ export class ChatModerationController {
   ) {
     await this.chatBridgeService.banSenderOfMessage(dto.rocketChatUserId, user.userId, { roomId, msgId }, req.ip);
     return { success: true };
+  }
+
+  /** Временный мут по комнате (группа/канал) — см. ChatBridgeService.muteUserInRoom. */
+  @Post('rooms/:roomId/mute')
+  async muteSender(
+    @Param('roomId') roomId: string,
+    @Query('roomType') roomType: ModerationRoomType,
+    @Body() dto: MuteSenderDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: any,
+  ) {
+    await this.chatBridgeService.muteUserInRoom(roomId, roomType, dto.username, user.userId, req.ip);
+    return { success: true };
+  }
+
+  @Post('rooms/:roomId/unmute')
+  async unmuteSender(
+    @Param('roomId') roomId: string,
+    @Query('roomType') roomType: ModerationRoomType,
+    @Body() dto: MuteSenderDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: any,
+  ) {
+    await this.chatBridgeService.unmuteUserInRoom(roomId, roomType, dto.username, user.userId, req.ip);
+    return { success: true };
+  }
+
+  @Get('reports')
+  listReports(@Query('status') status?: 'OPEN' | 'RESOLVED' | 'DISMISSED') {
+    return this.chatBridgeService.listReports(status);
+  }
+
+  @Post('reports/:id/resolve')
+  async resolveReport(
+    @Param('id') id: string,
+    @Body() dto: ResolveReportDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: any,
+  ) {
+    return this.chatBridgeService.resolveReport(id, dto.status, user.userId, req.ip);
   }
 }

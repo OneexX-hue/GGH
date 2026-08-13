@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth-context';
 import { apiFetch, ApiError } from '../../lib/api';
-import { XIcon } from '../../components/icons';
+import { XIcon, CheckDoubleIcon } from '../../components/icons';
 
 interface Member {
   id: string;
@@ -49,6 +49,16 @@ export default function MembersPage() {
     }
   }
 
+  async function unbanMember(id: string) {
+    if (!token) return;
+    try {
+      await apiFetch(`/users/${id}/unban`, { method: 'POST', token });
+      setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, status: 'ACTIVE' } : m)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось разблокировать');
+    }
+  }
+
   return (
     <div>
       <h1 className="page-title">👥 Участники</h1>
@@ -77,7 +87,7 @@ export default function MembersPage() {
                 <td>🏆 {m.pointsTotal}</td>
                 <td className="text-muted-foreground">{m.roles.map((r) => r.role.name).join(', ') || '—'}</td>
                 <td>
-                  {m.status !== 'BANNED' && (
+                  {m.status !== 'BANNED' ? (
                     <button
                       className="icon-btn-danger"
                       onClick={() => banMember(m.id)}
@@ -85,6 +95,15 @@ export default function MembersPage() {
                       aria-label="Заблокировать"
                     >
                       <XIcon size={15} />
+                    </button>
+                  ) : (
+                    <button
+                      className="icon-btn"
+                      onClick={() => unbanMember(m.id)}
+                      title="Разблокировать"
+                      aria-label="Разблокировать"
+                    >
+                      <CheckDoubleIcon size={15} />
                     </button>
                   )}
                 </td>

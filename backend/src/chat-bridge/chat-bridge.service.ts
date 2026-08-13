@@ -1,4 +1,12 @@
-import { BadGatewayException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { MessageReportStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -41,6 +49,13 @@ const HISTORY_ENDPOINT_BY_ROOM_TYPE: Record<ModerationRoomType, string> = {
   d: 'im.history',
   p: 'groups.history',
   c: 'channels.history',
+};
+
+// Мут — модерация на уровне комнаты (список участников), у личных
+// сообщений (`d`) такого понятия в Rocket.Chat нет — только у групп/каналов.
+const MUTE_ENDPOINT_BY_ROOM_TYPE: Partial<Record<ModerationRoomType, { mute: string; unmute: string }>> = {
+  p: { mute: 'groups.muteUser', unmute: 'groups.unmuteUser' },
+  c: { mute: 'channels.muteUser', unmute: 'channels.unmuteUser' },
 };
 
 /**
@@ -239,6 +254,95 @@ export class ChatBridgeService {
       metadata: { via: 'moderation.ban-sender', ...context },
       ipAddress,
     });
+  }
+
+  /**
+   * Временный мут по комнате (не постоянный бан аккаунта) — прокси к
+   * нативному REST-эндпоинту Rocket.Chat, не собственная блокировка
+   * отправки: сообщения пишутся клиентом напрямую в RC, backend их не
+   * проксирует, поэтому свою блокировку реализовать было бы некорректно.
+   * Личных сообщений (`d`) это не касается — у RC нет мута для DM.
+   */
+  async muteUserInRoom(
+    roomId: string,
+    roomType: ModerationRoomType,
+    username: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    await this.setMuted(roomId, roomType, username, true);
+    await this.auditLog.record({
+      actorUserId,
+      action: 'chat.mute',
+      targetType: 'RocketChatRoom',
+      targetId: roomId,
+      metadata: { username },
+      ipAddress,
+    });
+  }
+
+  async unmuteUserInRoom(
+    roomId: string,
+    roomType: ModerationRoomType,
+    username: string,
+    actorUserId: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    await this.setMuted(roomId, roomType, username, false);
+    await this.auditLog.record({
+      actorUserId,
+      action: 'chat.unmute',
+      targetType: 'RocketChatRoom',
+      targetId: roomId,
+      metadata: { username },
+      ipAddress,
+    });
+  }
+
+  private async setMuted(roomId: string, roomType: ModerationRoomType, username: string, mute: boolean): Promise<void> {
+    this.assertConfigured();
+
+    const endpoints = MUTE_ENDPOINT_BY_ROOM_TYPE[roomType];
+    if (!endpoints) {
+      throw new BadRequestException('Мут недоступен для личных сообщений — только для групп и каналов');
+    }
+
+    const response = await this.rocketChatFetch(`/api/v1/${mute ? endpoints.mute : endpoints.unmute}`, {
+      method: 'POST',
+      headers: this.adminHeaders(),
+      body: JSON.stringify({ roomId, username }),
+    });
+    if (!response.ok) {
+      throw new BadGatewayException(`Rocket.Chat ${mute ? endpoints.mute : endpoints.unmute} вернул ${response.status}`);
+    }
+  }
+
+  /** Жалоба на сообщение — доступна любому аутентифицированному участнику. */
+  async reportMessage(roomId: string, msgId: string, reporterUserId: string, reason: string) {
+    return this.prisma.messageReport.create({
+      data: { roomId, msgId, reporterUserId, reason },
+    });
+  }
+
+  async listReports(status?: MessageReportStatus) {
+    return this.prisma.messageReport.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: { reporter: { select: { id: true, displayName: true } } },
+    });
+  }
+
+  async resolveReport(id: string, status: 'RESOLVED' | 'DISMISSED', actorUserId: string, ipAddress?: string) {
+    const report = await this.prisma.messageReport.update({ where: { id }, data: { status } });
+    await this.auditLog.record({
+      actorUserId,
+      action: status === 'RESOLVED' ? 'chat.report.resolve' : 'chat.report.dismiss',
+      targetType: 'MessageReport',
+      targetId: id,
+      metadata: { roomId: report.roomId, msgId: report.msgId },
+      ipAddress,
+    });
+    return report;
   }
 
   /**

@@ -93,6 +93,29 @@ export class UsersService {
     return publicUser;
   }
 
+  async unban(targetUserId: string, actorUserId: string, ipAddress?: string) {
+    const user = await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { status: 'ACTIVE' },
+      select: { ...PUBLIC_USER_SELECT, rocketChatUserId: true },
+    });
+
+    if (user.rocketChatUserId) {
+      await this.chatBridge.setUserActive(user.rocketChatUserId, true);
+    }
+
+    await this.auditLog.record({
+      actorUserId,
+      action: 'user.unban',
+      targetType: 'User',
+      targetId: targetUserId,
+      ipAddress,
+    });
+
+    const { rocketChatUserId: _rocketChatUserId, ...publicUser } = user;
+    return publicUser;
+  }
+
   async addVehicle(userId: string, dto: CreateVehicleDto) {
     return this.prisma.vehicle.create({
       data: { ownerUserId: userId, ...dto },

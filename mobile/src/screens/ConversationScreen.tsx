@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
 import { Text, TextInput, IconButton, HelperText, ActivityIndicator, Menu } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -196,6 +196,28 @@ export function ConversationScreen({ route, navigation }: Props) {
     }
   }
 
+  async function reportMessage(msgId: string, reason: string) {
+    if (!authToken) return;
+    try {
+      await apiFetch(`/chat-bridge/messages/${roomId}/${msgId}/report`, {
+        method: 'POST',
+        token: authToken,
+        body: { reason },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить жалобу');
+    }
+  }
+
+  function onLongPressMessage(msgId: string) {
+    Alert.alert('Пожаловаться на сообщение', 'Выберите причину', [
+      { text: 'Спам', onPress: () => reportMessage(msgId, 'Спам') },
+      { text: 'Оскорбления', onPress: () => reportMessage(msgId, 'Оскорбления') },
+      { text: 'Другое', onPress: () => reportMessage(msgId, 'Другое') },
+      { text: 'Отмена', style: 'cancel' },
+    ]);
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -218,7 +240,9 @@ export function ConversationScreen({ route, navigation }: Props) {
 
           return (
             <FadeIn style={[styles.bubbleRow, mine ? styles.bubbleRowMine : undefined]}>
-              <View
+              <Pressable
+                disabled={mine}
+                onLongPress={() => onLongPressMessage(item._id)}
                 style={[
                   mediaMarker ? styles.mediaBubble : styles.bubble,
                   mine ? styles.bubbleMine : styles.bubbleTheirs,
@@ -248,7 +272,7 @@ export function ConversationScreen({ route, navigation }: Props) {
                     </Text>
                   </View>
                 )}
-              </View>
+              </Pressable>
             </FadeIn>
           );
         }}

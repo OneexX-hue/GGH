@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -73,5 +74,13 @@ export class MediaController {
       skip: skip ? Number(skip) : undefined,
       take: take ? Number(take) : undefined,
     });
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('chat.moderate')
+  async remove(@Param('id') id: string) {
+    await this.mediaService.deleteMedia(id);
+    return { success: true };
   }
 }

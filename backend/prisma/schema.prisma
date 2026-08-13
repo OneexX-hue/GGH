@@ -56,6 +56,7 @@ model User {
   hideAndSeekFinds      HideAndSeekFind[]     @relation("HideAndSeekFindSeeker")
   lprSubmissions        LprSubmission[]       @relation("LprSubmittedBy")
   lprReviews            LprSubmission[]       @relation("LprReviewedBy")
+  messageReports        MessageReport[]       @relation("MessageReporter")
 
   @@index([status])
 }
@@ -381,6 +382,28 @@ model ExpiringMessage {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+// --- Жалобы на сообщения (расширенная модерация) --------------------------
+
+enum MessageReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model MessageReport {
+  id             String              @id @default(uuid())
+  roomId         String
+  msgId          String
+  reporterUserId String
+  reporter       User                @relation("MessageReporter", fields: [reporterUserId], references: [id])
+  reason         String
+  status         MessageReportStatus @default(OPEN)
+  createdAt      DateTime            @default(now())
+
+  @@index([status])
+  @@index([roomId, msgId])
 }
 
 // --- Модуль "LPR" (Этап 2, backend/src/modules/lpr/, ТЗ гл. 3.4) ----------

@@ -147,6 +147,19 @@ export class MediaService {
     });
   }
 
+  /**
+   * Модерация конкретного медиафайла (расширенная модерация — не только
+   * просмотр журнала доступа, но и удаление самого файла). Права
+   * проверяются на уровне контроллера (chat.moderate), не здесь.
+   */
+  async deleteMedia(mediaId: string): Promise<void> {
+    const media = await this.prisma.chatMedia.findUnique({ where: { id: mediaId } });
+    if (!media) throw new NotFoundException('Медиафайл не найден');
+
+    await this.storage.delete(media.storageKey);
+    await this.prisma.chatMedia.delete({ where: { id: mediaId } });
+  }
+
   private validateAccessToken(mediaId: string, token: string): string {
     let payload: MediaTokenPayload;
     try {

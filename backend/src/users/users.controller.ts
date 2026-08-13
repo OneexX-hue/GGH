@@ -61,4 +61,11 @@ export class UsersController {
   ban(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: any) {
     return this.usersService.ban(id, user.userId, req.ip);
   }
+
+  @Post(':id/unban')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('users.manage')
+  unban(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: any) {
+    return this.usersService.unban(id, user.userId, req.ip);
+  }
 }
