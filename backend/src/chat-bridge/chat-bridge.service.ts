@@ -193,6 +193,28 @@ export class ChatBridgeService {
     return body.rooms ?? [];
   }
 
+  /**
+   * Инфо о комнате (тип + участники) — нужно для push на новые сообщения
+   * (`ChatMessageWebhookController`), чтобы понять, кому кроме отправителя
+   * слать уведомление. `usernames` заполнен у RC только для личных
+   * сообщений ('d') — для групп/каналов нужен отдельный endpoint
+   * (channels.members/groups.members), не реализовано в этой итерации.
+   */
+  async getRoomInfo(roomId: string): Promise<{ t: ModerationRoomType; usernames?: string[] }> {
+    this.assertConfigured();
+
+    const response = await this.rocketChatFetch(`/api/v1/rooms.info?roomId=${encodeURIComponent(roomId)}`, {
+      headers: this.adminHeaders(),
+    });
+    if (!response.ok) {
+      throw new BadGatewayException(`Rocket.Chat rooms.info вернул ${response.status}`);
+    }
+
+    const body = (await response.json()) as { room?: { t: ModerationRoomType; usernames?: string[] } };
+    if (!body.room) throw new NotFoundException('Комната не найдена');
+    return body.room;
+  }
+
   async getRoomHistory(roomId: string, roomType: ModerationRoomType, count = 50): Promise<ModerationMessage[]> {
     this.assertConfigured();
 

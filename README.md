@@ -121,6 +121,28 @@ WebRTC-звонков (docs/DECISIONS.md, "WebRTC-звонки — архите�
 остальной API не блокируются, но `POST /chat-bridge/session` (и,
 соответственно, чат в мобильном приложении) вернёт 503.
 
+**Опционально: push при новых личных сообщениях** — исходящий вебхук RC
+(backend/src/chat-bridge/chat-message-webhook.controller.ts):
+
+1. `Administration → Integrations → New Outgoing Webhook`.
+2. Event Trigger: `Send Message`. Enabled: да.
+3. URL(s): `http://backend:3001/chat-bridge/webhooks/message` (внутри
+   docker-сети — имя сервиса `backend`, не `localhost`).
+4. В `backend/.env` задать `CHAT_MESSAGE_WEBHOOK_SECRET` — тот же
+   секрет прописать в поле "Token" интеграции в RC (RC добавляет его в
+   тело запроса как `token`, backend сверяет перед обработкой).
+5. Перезапустить `backend`.
+
+Пока реализовано только для личных сообщений (roomType `d`) — для
+групп/каналов резолв списка участников не сделан, вне объёма этой
+итерации. Без `CHAT_MESSAGE_WEBHOOK_SECRET` эндпоинт отвечает 403 на
+любой запрос, ничего не отправляет. ⚠️ Форма payload'а вебхука по
+документации Rocket.Chat, **не проверена вживую против реального RC**
+в этой сессии (нет Docker-демона для полноценного RC, мок-сервер не
+реализует Integrations) — логика проверена unit-тестами и ручным
+POST-прогоном с тем же форматом payload, что шлёт RC, но не самим
+живым триггером RC.
+
 ## Тесты (backend)
 
 Unit-тесты (моки Prisma/зависимостей, без реальной БД):
