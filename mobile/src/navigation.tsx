@@ -30,7 +30,7 @@ export type RootStackParamList = {
   Register: undefined;
   ChatList: undefined;
   NewChat: undefined;
-  Conversation: { roomId: string; roomType: RoomType; title: string };
+  Conversation: { roomId: string; roomType: RoomType; title: string; peerUserId?: string };
   Profile: undefined;
   Quests: undefined;
   QuestDetail: { questId: string; title: string; checkpoints: QuestCheckpointParam[] };

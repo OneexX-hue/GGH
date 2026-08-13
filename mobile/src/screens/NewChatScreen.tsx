@@ -50,7 +50,13 @@ export function NewChatScreen({ navigation }: Props) {
       const usernames = Array.from(selected);
       if (usernames.length === 1) {
         const room = await restClient.createDirectMessage(usernames[0]);
-        navigation.replace('Conversation', { roomId: room._id, roomType: 'd', title: usernames[0] });
+        const member = members.find((m) => m.rocketChatUsername === usernames[0]);
+        navigation.replace('Conversation', {
+          roomId: room._id,
+          roomType: 'd',
+          title: member?.displayName ?? usernames[0],
+          peerUserId: member?.id,
+        });
       } else {
         if (!groupName.trim()) {
           setError('Укажите название группы/канала');

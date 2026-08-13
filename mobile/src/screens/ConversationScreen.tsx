@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { Text, TextInput, IconButton, HelperText, ActivityIndicator, Menu } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useChat } from '../chat-context';
 import { useAuth } from '../auth-context';
+import { useCalls } from '../calls/calls-context';
 import { apiFetch } from '../api';
 import type { RCMessage } from '../rocketchat/types';
 import type { RootStackParamList } from '../navigation';
@@ -43,6 +44,7 @@ export function ConversationScreen({ route, navigation }: Props) {
   const { roomId, roomType, title } = route.params;
   const { restClient, realtimeClient, currentRocketChatUserId } = useChat();
   const { token: authToken } = useAuth();
+  const calls = useCalls();
   const [messages, setMessages] = useState<RCMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -50,11 +52,58 @@ export function ConversationScreen({ route, navigation }: Props) {
   const [ttlSeconds, setTtlSeconds] = useState<number | null>(null);
   const [ttlMenuVisible, setTtlMenuVisible] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [peerUserId, setPeerUserId] = useState<string | null>(route.params.peerUserId ?? null);
   const seenIds = useRef(new Set<string>());
 
+  // Звонки адресуются реальному userId, не RC id/псевдониму (см.
+  // docs/DECISIONS.md, "WebRTC-звонки — архитектура"). Для DM,
+  // созданных через NewChatScreen, userId уже известен из параметров
+  // навигации; для уже существующих чатов резолвим лениво по RC-имени
+  // первого чужого сообщения в истории — тот же приём, что в web-admin.
+  useEffect(() => {
+    if (roomType !== 'd' || peerUserId || messages.length === 0) return;
+    const theirMessage = messages.find((m) => m.u._id !== currentRocketChatUserId);
+    if (!theirMessage) return;
+    calls.resolvePeerUserIdByRcUsername(theirMessage.u.username).then((id) => {
+      if (id) setPeerUserId(id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomType, peerUserId, messages, currentRocketChatUserId]);
+
   useLayoutEffect(() => {
-    navigation.setOptions({ title });
-  }, [navigation, title]);
+    navigation.setOptions({
+      title,
+      headerRight:
+        roomType === 'd'
+          ? () => (
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={styles.headerBtn}
+                  disabled={!peerUserId || calls.status !== 'idle'}
+                  onPress={() => peerUserId && calls.startCall(peerUserId, title, 'audio')}
+                >
+                  <Icon
+                    name="phone"
+                    size={19}
+                    color={peerUserId && calls.status === 'idle' ? '#f4f6f8' : '#4a5158'}
+                  />
+                </Pressable>
+                <Pressable
+                  style={styles.headerBtn}
+                  disabled={!peerUserId || calls.status !== 'idle'}
+                  onPress={() => peerUserId && calls.startCall(peerUserId, title, 'video')}
+                >
+                  <Icon
+                    name="video"
+                    size={19}
+                    color={peerUserId && calls.status === 'idle' ? '#f4f6f8' : '#4a5158'}
+                  />
+                </Pressable>
+              </View>
+            )
+          : undefined,
+    });
+  }, [navigation, title, roomType, peerUserId, calls.status]);
 
   useEffect(() => {
     if (!restClient) return;
@@ -302,4 +351,6 @@ const styles = StyleSheet.create({
   },
   attachButton: { marginBottom: 2 },
   error: { textAlign: 'center' },
+  headerActions: { flexDirection: 'row', gap: 4, marginRight: 4 },
+  headerBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
 });

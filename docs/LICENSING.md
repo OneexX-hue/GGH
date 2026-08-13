@@ -102,6 +102,7 @@ GPL/AGPL/сильный copyleft без явного одобрения чело
 | `@nestjs/platform-ws` (backend) | MIT | WS-адаптер для Gateway — не socket.io, см. docs/DECISIONS.md, "WebRTC-звонки — архитектура" (не тянем socket.io-client на клиенты ради простого relay) |
 | `ws` (backend, транзитивная через platform-ws) | MIT | |
 | `react-native-webrtc` (mobile) | MIT | Активно поддерживается (релизы 124.x), стандартная библиотека WebRTC для React Native, используется в т.ч. Jitsi |
+| `@config-plugins/react-native-webrtc` (mobile, dev) | MIT | Официальный Expo community config-plugin — прописывает `NSCameraUsageDescription`/`NSMicrophoneUsageDescription` (iOS) и разрешения камеры/микрофона (Android) при `expo prebuild`, без ручной правки нативных проектов |
 | `coturn` (infra, Docker-образ, не npm-пакет) | **BSD-3-Clause** | Self-hosted STUN/TURN-сервер, проверено по `LICENSE` в `coturn/coturn` на GitHub — постоянный разрешённый permissive-путь |
 
 ### Дизайн-система web-admin/mobile, проверено 11.08.2026 по полю `license` в package.json на npm registry
