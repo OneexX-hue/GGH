@@ -101,9 +101,32 @@ export function ConversationScreen({ route, navigation }: Props) {
                 </Pressable>
               </View>
             )
-          : undefined,
+          : // Групповой звонок (mesh, до 4 участников, см.
+            // docs/DECISIONS.md) — та же комната чата служит комнатой
+            // звонка, без отдельного изобретения "id комнаты звонка".
+            () => {
+              const groupBusy = !calls.ready || Boolean(calls.group) || calls.status !== 'idle';
+              return (
+                <View style={styles.headerActions}>
+                  <Pressable
+                    style={styles.headerBtn}
+                    disabled={groupBusy}
+                    onPress={() => calls.joinCallRoom(roomId, 'audio')}
+                  >
+                    <Icon name="phone" size={19} color={groupBusy ? '#4a5158' : '#f4f6f8'} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.headerBtn}
+                    disabled={groupBusy}
+                    onPress={() => calls.joinCallRoom(roomId, 'video')}
+                  >
+                    <Icon name="video" size={19} color={groupBusy ? '#4a5158' : '#f4f6f8'} />
+                  </Pressable>
+                </View>
+              );
+            },
     });
-  }, [navigation, title, roomType, peerUserId, calls.status]);
+  }, [navigation, title, roomType, roomId, peerUserId, calls.status, calls.ready, calls.group]);
 
   useEffect(() => {
     if (!restClient) return;

@@ -41,6 +41,24 @@ interface DirectoryMember {
   rocketChatUsername: string;
 }
 
+// Групповые звонки (mesh, до 4 участников, см. docs/DECISIONS.md) —
+// отдельное состояние от 1:1-звонка (CallState выше): сервер не
+// смешивает эти два режима, а один и тот же пользователь физически не
+// может состоять в 1:1-звонке и в комнате одновременно (UI это не
+// допускает), но в коде проще держать их раздельно, чем городить union-тип.
+export interface GroupPeerState {
+  userId: string;
+  stream: MediaStream | null;
+}
+
+interface GroupCallState {
+  callRoomId: string;
+  kind: CallKind;
+  localStream: MediaStream;
+  muted: boolean;
+  peers: GroupPeerState[];
+}
+
 interface CallsContextValue extends CallState {
   ready: boolean;
   startCall: (peerUserId: string, peerName: string, kind: CallKind) => Promise<void>;
@@ -50,6 +68,11 @@ interface CallsContextValue extends CallState {
   toggleMute: () => void;
   resolvePeerName: (userId: string) => Promise<string>;
   resolvePeerUserIdByRcUsername: (rcUsername: string) => Promise<string | null>;
+  group: GroupCallState | null;
+  groupError: string | null;
+  joinCallRoom: (callRoomId: string, kind: CallKind) => Promise<void>;
+  leaveCallRoom: () => void;
+  toggleGroupMute: () => void;
 }
 
 const CallsContext = createContext<CallsContextValue | undefined>(undefined);
@@ -64,6 +87,12 @@ export function CallsProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const directoryRef = useRef<DirectoryMember[] | null>(null);
+
+  const [group, setGroup] = useState<GroupCallState | null>(null);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const groupRef = useRef<GroupCallState | null>(null);
+  groupRef.current = group;
+  const groupPcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
   const loadDirectory = useCallback(async (): Promise<DirectoryMember[]> => {
     if (directoryRef.current) return directoryRef.current;
@@ -109,6 +138,60 @@ export function CallsProvider({ children }: { children: ReactNode }) {
     pcRef.current = pc;
     return pc;
   }
+
+  function cleanupGroupCall() {
+    groupPcsRef.current.forEach((pc) => pc.close());
+    groupPcsRef.current.clear();
+    groupRef.current?.localStream.getTracks().forEach((t) => t.stop());
+    setGroup(null);
+  }
+
+  function createGroupPeerConnection(peerId: string, callRoomId: string, localStream: MediaStream): RTCPeerConnection {
+    const pc = new RTCPeerConnection({ iceServers: getIceServers() });
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        signalingRef.current?.sendIceCandidate(peerId, callRoomId, event.candidate.toJSON());
+      }
+    };
+    pc.ontrack = (event) => {
+      const stream = event.streams[0] ?? null;
+      setGroup((prev) =>
+        prev && prev.callRoomId === callRoomId
+          ? { ...prev, peers: prev.peers.map((p) => (p.userId === peerId ? { ...p, stream } : p)) }
+          : prev,
+      );
+    };
+    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    groupPcsRef.current.set(peerId, pc);
+    return pc;
+  }
+
+  const joinCallRoom = useCallback(async (callRoomId: string, kind: CallKind) => {
+    if (!signalingRef.current) return;
+    try {
+      const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: kind === 'video' });
+      setGroupError(null);
+      setGroup({ callRoomId, kind, localStream, muted: false, peers: [] });
+      signalingRef.current.joinCallRoom(callRoomId, kind);
+    } catch (err) {
+      setGroupError(err instanceof Error ? err.message : 'Не удалось получить доступ к камере/микрофону');
+    }
+  }, []);
+
+  const leaveCallRoom = useCallback(() => {
+    const current = groupRef.current;
+    if (current) signalingRef.current?.leaveCallRoom(current.callRoomId);
+    cleanupGroupCall();
+  }, []);
+
+  const toggleGroupMute = useCallback(() => {
+    setGroup((prev) => {
+      if (!prev) return prev;
+      const next = !prev.muted;
+      prev.localStream.getAudioTracks().forEach((t) => (t.enabled = !next));
+      return { ...prev, muted: next };
+    });
+  }, []);
 
   const startCall = useCallback(
     async (peerUserId: string, peerName: string, kind: CallKind) => {
@@ -172,6 +255,7 @@ export function CallsProvider({ children }: { children: ReactNode }) {
       signalingRef.current?.disconnect();
       signalingRef.current = null;
       setReady(false);
+      cleanupGroupCall();
       return;
     }
 
@@ -191,6 +275,20 @@ export function CallsProvider({ children }: { children: ReactNode }) {
         signalingRef.current?.sendOffer(from, callId, offer);
       },
       onOffer: async ({ from, callId, sdp }) => {
+        const currentGroup = groupRef.current;
+        if (currentGroup && currentGroup.callRoomId === callId) {
+          const pc = groupPcsRef.current.get(from) ?? createGroupPeerConnection(from, callId, currentGroup.localStream);
+          await pc.setRemoteDescription(sdp);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          signalingRef.current?.sendAnswer(from, callId, answer);
+          setGroup((prev) =>
+            prev && prev.callRoomId === callId && !prev.peers.some((p) => p.userId === from)
+              ? { ...prev, peers: [...prev.peers, { userId: from, stream: null }] }
+              : prev,
+          );
+          return;
+        }
         const current = stateRef.current;
         if (current.callId !== callId || !current.localStream) return;
         const pc = createPeerConnection(from, callId);
@@ -200,11 +298,25 @@ export function CallsProvider({ children }: { children: ReactNode }) {
         await pc.setLocalDescription(answer);
         signalingRef.current?.sendAnswer(from, callId, answer);
       },
-      onAnswer: async ({ callId, sdp }) => {
+      onAnswer: async ({ from, callId, sdp }) => {
+        const currentGroup = groupRef.current;
+        if (currentGroup && currentGroup.callRoomId === callId) {
+          await groupPcsRef.current.get(from)?.setRemoteDescription(sdp);
+          return;
+        }
         if (stateRef.current.callId !== callId || !pcRef.current) return;
         await pcRef.current.setRemoteDescription(sdp);
       },
-      onIceCandidate: async ({ callId, candidate }) => {
+      onIceCandidate: async ({ from, callId, candidate }) => {
+        const currentGroup = groupRef.current;
+        if (currentGroup && currentGroup.callRoomId === callId) {
+          try {
+            await groupPcsRef.current.get(from)?.addIceCandidate(candidate);
+          } catch {
+            // ICE-кандидат мог прийти до setRemoteDescription — безопасно игнорировать одиночный сбой
+          }
+          return;
+        }
         if (stateRef.current.callId !== callId || !pcRef.current) return;
         try {
           await pcRef.current.addIceCandidate(candidate);
@@ -223,6 +335,46 @@ export function CallsProvider({ children }: { children: ReactNode }) {
           setState({ ...IDLE_STATE, error: reason === 'user-offline' ? 'Участник сейчас не в сети' : reason });
         }
       },
+      onRoomPeers: async ({ callRoomId, peers }) => {
+        const current = groupRef.current;
+        if (!current || current.callRoomId !== callRoomId) return;
+        setGroup((prev) =>
+          prev && prev.callRoomId === callRoomId ? { ...prev, peers: peers.map((id) => ({ userId: id, stream: null })) } : prev,
+        );
+        // Мы — только что присоединившийся участник, поэтому сами
+        // инициируем offer к каждому, кто уже в комнате (см. серверный
+        // комментарий в calls.gateway.ts#onJoinCallRoom).
+        for (const peerId of peers) {
+          const pc = createGroupPeerConnection(peerId, callRoomId, current.localStream);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          signalingRef.current?.sendOffer(peerId, callRoomId, offer);
+        }
+      },
+      onPeerJoined: ({ callRoomId, peerId }) => {
+        const current = groupRef.current;
+        if (!current || current.callRoomId !== callRoomId) return;
+        setGroup((prev) => {
+          if (!prev || prev.callRoomId !== callRoomId || prev.peers.some((p) => p.userId === peerId)) return prev;
+          return { ...prev, peers: [...prev.peers, { userId: peerId, stream: null }] };
+        });
+        // Новый участник сам пришлёт offer (см. onRoomPeers выше) — здесь
+        // только показываем его в сетке плиток, пока стрим не пришёл.
+      },
+      onPeerLeft: ({ callRoomId, peerId }) => {
+        const current = groupRef.current;
+        if (!current || current.callRoomId !== callRoomId) return;
+        groupPcsRef.current.get(peerId)?.close();
+        groupPcsRef.current.delete(peerId);
+        setGroup((prev) =>
+          prev && prev.callRoomId === callRoomId ? { ...prev, peers: prev.peers.filter((p) => p.userId !== peerId) } : prev,
+        );
+      },
+      onCallRoomFull: ({ callRoomId }) => {
+        const current = groupRef.current;
+        if (current && current.callRoomId === callRoomId) cleanupGroupCall();
+        setGroupError('Комната звонка заполнена (максимум 4 участника)');
+      },
       onClose: () => setReady(false),
     });
     client.connect();
@@ -238,7 +390,22 @@ export function CallsProvider({ children }: { children: ReactNode }) {
 
   return (
     <CallsContext.Provider
-      value={{ ...state, ready, startCall, acceptCall, rejectCall, endCall, toggleMute, resolvePeerName, resolvePeerUserIdByRcUsername }}
+      value={{
+        ...state,
+        ready,
+        startCall,
+        acceptCall,
+        rejectCall,
+        endCall,
+        toggleMute,
+        resolvePeerName,
+        resolvePeerUserIdByRcUsername,
+        group,
+        groupError,
+        joinCallRoom,
+        leaveCallRoom,
+        toggleGroupMute,
+      }}
     >
       {children}
     </CallsContext.Provider>

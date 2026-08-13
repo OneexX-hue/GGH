@@ -1,22 +1,91 @@
+import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
-import { RTCView } from 'react-native-webrtc';
-import { useCalls } from '../calls/calls-context';
+import { RTCView, MediaStream } from 'react-native-webrtc';
+import { useCalls, type GroupPeerState } from '../calls/calls-context';
 import { Icon } from './Icon';
 import { colors } from '../theme';
+
+function GroupTile({ userId, stream, self }: { userId: string; stream: MediaStream | null; self?: boolean }) {
+  const { resolvePeerName } = useCalls();
+  const [name, setName] = useState('Участник клуба');
+
+  useEffect(() => {
+    if (self) {
+      setName('Вы');
+      return;
+    }
+    let cancelled = false;
+    resolvePeerName(userId).then((n) => {
+      if (!cancelled) setName(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, self, resolvePeerName]);
+
+  return (
+    <View style={styles.gridTile}>
+      {stream ? (
+        <RTCView streamURL={stream.toURL()} style={styles.gridTileVideo} objectFit="cover" mirror={self} />
+      ) : (
+        <Text style={styles.gridTilePlaceholder}>Подключение…</Text>
+      )}
+      <Text style={styles.gridTileLabel}>{name}</Text>
+    </View>
+  );
+}
+
+// Групповой звонок (mesh, до 4 участников, см. docs/DECISIONS.md) —
+// сетка плиток: своя + по одной на каждого участника комнаты.
+function GroupCallOverlay() {
+  const { group, groupError, leaveCallRoom, toggleGroupMute } = useCalls();
+  if (!group) return null;
+  const peers: GroupPeerState[] = group.peers;
+
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent>
+      <View style={styles.overlay}>
+        <View style={styles.connected}>
+          <View style={styles.grid}>
+            <GroupTile userId="self" stream={group.kind === 'video' ? group.localStream : null} self />
+            {peers.map((p) => (
+              <GroupTile key={p.userId} userId={p.userId} stream={group.kind === 'video' ? p.stream : null} />
+            ))}
+          </View>
+          <Text style={styles.title}>
+            Групповой {group.kind === 'video' ? 'видео' : 'аудио'}звонок · {peers.length + 1}/4
+          </Text>
+          <View style={styles.actions}>
+            <Pressable style={[styles.btn, group.muted && styles.btnMuted]} onPress={toggleGroupMute}>
+              <Icon name="mic" size={22} color={colors.onSurface} />
+            </Pressable>
+            <Pressable style={[styles.btn, styles.btnReject]} onPress={leaveCallRoom}>
+              <Icon name="x" size={22} color="#fff" />
+            </Pressable>
+          </View>
+          {groupError && <Text style={styles.toastText}>⚠️ {groupError}</Text>}
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 // Глобальный оверлей звонка — смонтирован один раз в App.tsx рядом с
 // RootNavigator, поэтому входящий звонок виден на любом экране, не
 // только в диалоге. См. web-admin/components/CallOverlay.tsx — тот же
 // принцип и протокол на другой платформе.
 export function CallOverlay() {
-  const { status, peerName, kind, localStream, remoteStream, muted, error, acceptCall, rejectCall, endCall, toggleMute } =
+  const { status, peerName, kind, localStream, remoteStream, muted, error, acceptCall, rejectCall, endCall, toggleMute, group, groupError } =
     useCalls();
 
+  if (group) return <GroupCallOverlay />;
+
   if (status === 'idle') {
-    if (!error) return null;
+    const message = error ?? groupError;
+    if (!message) return null;
     return (
       <View style={styles.toast} pointerEvents="none">
-        <Text style={styles.toastText}>⚠️ {error}</Text>
+        <Text style={styles.toastText}>⚠️ {message}</Text>
       </View>
     );
   }
@@ -131,4 +200,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   toastText: { color: '#e5483c', fontSize: 13, textAlign: 'center' },
+  grid: {
+    width: '92%',
+    height: '62%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 20,
+  },
+  gridTile: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridTileVideo: { width: '100%', height: '100%' },
+  gridTileLabel: {
+    position: 'absolute',
+    left: 8,
+    bottom: 6,
+    fontSize: 11,
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  gridTilePlaceholder: { color: colors.onSurfaceVariant, fontSize: 12 },
 });

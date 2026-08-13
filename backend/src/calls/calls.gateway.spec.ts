@@ -233,4 +233,83 @@ describe('CallsGateway', () => {
       );
     });
   });
+
+  describe('групповые звонки (join-call-room/leave-call-room)', () => {
+    it('первый участник комнаты получает room-peers с пустым списком', async () => {
+      const a = connectUser('user-a');
+
+      await gateway.onJoinCallRoom(a, { callRoomId: 'room-1', kind: 'video' });
+
+      expect(a.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'room-peers', data: { callRoomId: 'room-1', peers: [] } }),
+      );
+    });
+
+    it('второй участник получает room-peers со списком уже присутствующих, первый — peer-joined', async () => {
+      const a = connectUser('user-a');
+      const b = connectUser('user-b');
+
+      await gateway.onJoinCallRoom(a, { callRoomId: 'room-1', kind: 'video' });
+      await gateway.onJoinCallRoom(b, { callRoomId: 'room-1', kind: 'video' });
+
+      expect(b.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'room-peers', data: { callRoomId: 'room-1', peers: ['user-a'] } }),
+      );
+      expect(a.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'peer-joined', data: { callRoomId: 'room-1', peerId: 'user-b', kind: 'video' } }),
+      );
+    });
+
+    it('пятый участник получает call-room-full и не добавляется в комнату', async () => {
+      const sockets = ['user-a', 'user-b', 'user-c', 'user-d'].map((id) => connectUser(id));
+      for (let i = 0; i < sockets.length; i++) {
+        await gateway.onJoinCallRoom(sockets[i], { callRoomId: 'room-full', kind: 'audio' });
+      }
+      const fifth = connectUser('user-e');
+
+      await gateway.onJoinCallRoom(fifth, { callRoomId: 'room-full', kind: 'audio' });
+
+      expect(fifth.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'call-room-full', data: { callRoomId: 'room-full' } }),
+      );
+    });
+
+    it('leave-call-room уведомляет оставшихся участников peer-left', async () => {
+      const a = connectUser('user-a');
+      const b = connectUser('user-b');
+      await gateway.onJoinCallRoom(a, { callRoomId: 'room-2', kind: 'audio' });
+      await gateway.onJoinCallRoom(b, { callRoomId: 'room-2', kind: 'audio' });
+
+      await gateway.onLeaveCallRoom(b, { callRoomId: 'room-2' });
+
+      expect(a.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'peer-left', data: { callRoomId: 'room-2', peerId: 'user-b' } }),
+      );
+    });
+
+    it('disconnect автоматически убирает пользователя из его комнат с уведомлением', async () => {
+      const a = connectUser('user-a');
+      const b = connectUser('user-b');
+      await gateway.onJoinCallRoom(a, { callRoomId: 'room-3', kind: 'audio' });
+      await gateway.onJoinCallRoom(b, { callRoomId: 'room-3', kind: 'audio' });
+
+      gateway.handleDisconnect(b);
+      await Promise.resolve(); // дать событийному циклу дойти до async leaveCallRoom
+
+      expect(a.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'peer-left', data: { callRoomId: 'room-3', peerId: 'user-b' } }),
+      );
+    });
+
+    it('offer/answer/ice-candidate переиспользуются для mesh-пар с callRoomId вместо callId', async () => {
+      const a = connectUser('user-a');
+      const b = connectUser('user-b');
+
+      await gateway.onOffer(a, { to: 'user-b', callId: 'room-mesh', sdp: { type: 'offer', sdp: 'x' } });
+
+      expect(b.send).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'offer', data: { from: 'user-a', callId: 'room-mesh', sdp: { type: 'offer', sdp: 'x' } } }),
+      );
+    });
+  });
 });

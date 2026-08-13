@@ -52,6 +52,22 @@ export interface IceCandidateEvent {
   callId: string;
   candidate: IceCandidatePayload;
 }
+export interface PeerJoinedEvent {
+  callRoomId: string;
+  peerId: string;
+  kind: CallKind;
+}
+export interface PeerLeftEvent {
+  callRoomId: string;
+  peerId: string;
+}
+export interface RoomPeersEvent {
+  callRoomId: string;
+  peers: string[];
+}
+export interface CallRoomFullEvent {
+  callRoomId: string;
+}
 
 interface SignalingHandlers {
   onIncomingCall?: (e: IncomingCallEvent) => void;
@@ -62,6 +78,10 @@ interface SignalingHandlers {
   onOffer?: (e: OfferEvent) => void;
   onAnswer?: (e: AnswerEvent) => void;
   onIceCandidate?: (e: IceCandidateEvent) => void;
+  onPeerJoined?: (e: PeerJoinedEvent) => void;
+  onPeerLeft?: (e: PeerLeftEvent) => void;
+  onRoomPeers?: (e: RoomPeersEvent) => void;
+  onCallRoomFull?: (e: CallRoomFullEvent) => void;
   onClose?: () => void;
 }
 
@@ -122,6 +142,18 @@ export class CallsSignalingClient {
       case 'ice-candidate':
         this.handlers.onIceCandidate?.(data as IceCandidateEvent);
         break;
+      case 'peer-joined':
+        this.handlers.onPeerJoined?.(data as PeerJoinedEvent);
+        break;
+      case 'peer-left':
+        this.handlers.onPeerLeft?.(data as PeerLeftEvent);
+        break;
+      case 'room-peers':
+        this.handlers.onRoomPeers?.(data as RoomPeersEvent);
+        break;
+      case 'call-room-full':
+        this.handlers.onCallRoomFull?.(data as CallRoomFullEvent);
+        break;
     }
   }
 
@@ -150,6 +182,13 @@ export class CallsSignalingClient {
   }
   endCall(to: string, callId: string) {
     this.send('end-call', { to, callId });
+  }
+
+  joinCallRoom(callRoomId: string, kind: CallKind) {
+    this.send('join-call-room', { callRoomId, kind });
+  }
+  leaveCallRoom(callRoomId: string) {
+    this.send('leave-call-room', { callRoomId });
   }
 
   disconnect() {

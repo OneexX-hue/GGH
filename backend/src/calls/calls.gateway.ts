@@ -33,6 +33,21 @@ interface ActiveCall {
   acceptedAt?: Date;
 }
 
+interface JoinCallRoomPayload {
+  callRoomId: string;
+  kind: 'audio' | 'video';
+}
+
+interface LeaveCallRoomPayload {
+  callRoomId: string;
+}
+
+// Групповые звонки (блок I) — mesh без SFU, поэтому лимит участников
+// небольшой: N участников означают N*(N-1)/2 прямых P2P-соединений
+// (полный граф), при 4 участниках это уже 6 соединений на клиента —
+// разумный потолок без выделенного медиасервера. См. docs/DECISIONS.md.
+const MAX_CALL_ROOM_SIZE = 4;
+
 // Сигнальный шлюз WebRTC-звонков — только пересылает offer/answer/ICE
 // между двумя авторизованными участниками, никогда не видит и не
 // обрабатывает сам медиапоток (см. docs/DECISIONS.md, "WebRTC-звонки —
@@ -48,6 +63,13 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect, O
   // История звонков (блок G) — не для сигнализации, только для записи
   // завершённых/пропущенных/отклонённых звонков в БД, см. Call в schema.prisma.
   private readonly activeCalls = new Map<string, ActiveCall>();
+  // Групповые звонки (блок I) — callRoomId -> участники; отдельно от
+  // activeCalls (та структура — только для 1:1 истории). Не пишутся в
+  // Call-историю — вне объёма этого прохода, см. docs/DECISIONS.md.
+  private readonly callRooms = new Map<string, Set<string>>();
+  // Обратный индекс для очистки при disconnect — в каких комнатах
+  // состоит пользователь.
+  private readonly userCallRooms = new Map<string, Set<string>>();
 
   constructor(
     private readonly jwt: JwtService,
@@ -93,6 +115,10 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     if (client.userId && this.online.get(client.userId) === client) {
       this.online.delete(client.userId);
       void this.presence.markOffline(client.userId);
+      const rooms = this.userCallRooms.get(client.userId);
+      if (rooms) {
+        for (const callRoomId of [...rooms]) void this.leaveCallRoom(client.userId, callRoomId);
+      }
       this.logger.log(`Пользователь ${client.userId} отключился от сигнализации звонков`);
     }
   }
@@ -193,6 +219,58 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect, O
     await this.relay(payload.to, 'call-ended', { from: client.userId, callId: payload.callId });
     const active = this.activeCalls.get(payload.callId);
     this.finalizeCall(payload.callId, active?.acceptedAt ? CallStatus.COMPLETED : CallStatus.MISSED);
+  }
+
+  /**
+   * Групповой звонок (mesh, до MAX_CALL_ROOM_SIZE участников). Клиент
+   * сам решает, с кем из уже присутствующих участников устанавливать
+   * P2P-соединение — сервер только держит список участников комнаты и
+   * рассылает join/leave-уведомления, offer/answer/ice-candidate
+   * переиспользуются как есть (те же события, что и в 1:1, просто
+   * callId здесь равен callRoomId, а `to` указывает на конкретного
+   * участника mesh-сетки).
+   */
+  @SubscribeMessage('join-call-room')
+  async onJoinCallRoom(client: AuthenticatedSocket, payload: JoinCallRoomPayload) {
+    if (!client.userId) return;
+    const room = this.callRooms.get(payload.callRoomId) ?? new Set<string>();
+
+    if (room.size >= MAX_CALL_ROOM_SIZE) {
+      this.sendLocal(client.userId, 'call-room-full', { callRoomId: payload.callRoomId });
+      return;
+    }
+
+    const existingPeers = [...room];
+    room.add(client.userId);
+    this.callRooms.set(payload.callRoomId, room);
+    if (!this.userCallRooms.has(client.userId)) this.userCallRooms.set(client.userId, new Set());
+    this.userCallRooms.get(client.userId)!.add(payload.callRoomId);
+
+    for (const peerId of existingPeers) {
+      await this.relay(peerId, 'peer-joined', { callRoomId: payload.callRoomId, peerId: client.userId, kind: payload.kind });
+    }
+    // Отвечаем самому присоединившемуся списком тех, кто уже в комнате —
+    // он сам инициирует offer к каждому из них (см. calls-context на клиенте).
+    this.sendLocal(client.userId, 'room-peers', { callRoomId: payload.callRoomId, peers: existingPeers });
+  }
+
+  @SubscribeMessage('leave-call-room')
+  async onLeaveCallRoom(client: AuthenticatedSocket, payload: LeaveCallRoomPayload) {
+    if (!client.userId) return;
+    await this.leaveCallRoom(client.userId, payload.callRoomId);
+  }
+
+  private async leaveCallRoom(userId: string, callRoomId: string): Promise<void> {
+    const room = this.callRooms.get(callRoomId);
+    if (!room || !room.has(userId)) return;
+
+    room.delete(userId);
+    this.userCallRooms.get(userId)?.delete(callRoomId);
+    if (room.size === 0) this.callRooms.delete(callRoomId);
+
+    for (const peerId of room) {
+      await this.relay(peerId, 'peer-left', { callRoomId, peerId: userId });
+    }
   }
 
   /**

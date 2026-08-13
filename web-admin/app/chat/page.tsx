@@ -252,12 +252,23 @@ export default function ChatPage() {
   const selectedMuted = selected ? mutedRooms.has(selected.roomId) : false;
 
   let callDisabledReason: string | null = null;
-  if (!selected || selected.roomType !== 'd') callDisabledReason = 'Звонки доступны только в личных чатах';
+  if (!selected || selected.roomType !== 'd') callDisabledReason = 'Звонки один-на-один доступны только в личных чатах';
   else if (!calls.ready) callDisabledReason = 'Подключаемся к сигнальному серверу…';
   else if (calls.status !== 'idle') callDisabledReason = 'Уже есть активный звонок';
   else if (resolvingPeer) callDisabledReason = 'Определяем собеседника…';
   else if (!selected.peerUserId) callDisabledReason = 'Не удалось определить собеседника для звонка';
   const canCall = !callDisabledReason;
+
+  // Групповой звонок (mesh, до 4 участников, см. docs/DECISIONS.md) —
+  // для групповых/канальных комнат вместо 1:1-звонка: комнатой mesh
+  // служит сам roomId чата, что не требует отдельного изобретения
+  // "id комнаты звонка".
+  let groupCallDisabledReason: string | null = null;
+  if (!selected || selected.roomType === 'd') groupCallDisabledReason = 'Групповые звонки доступны только в групповых чатах';
+  else if (!calls.ready) groupCallDisabledReason = 'Подключаемся к сигнальному серверу…';
+  else if (calls.group) groupCallDisabledReason = 'Уже идёт групповой звонок';
+  else if (calls.status !== 'idle') groupCallDisabledReason = 'Уже есть активный звонок';
+  const canJoinGroupCall = !groupCallDisabledReason;
 
   return (
     <div>
@@ -438,26 +449,53 @@ export default function ChatPage() {
                   >
                     <SearchIcon size={17} />
                   </button>
-                  <button
-                    className="chat-ghost-btn"
-                    type="button"
-                    disabled={!canCall}
-                    title={callDisabledReason ?? 'Аудиозвонок'}
-                    aria-label="Аудиозвонок"
-                    onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'audio')}
-                  >
-                    <PhoneIcon size={17} />
-                  </button>
-                  <button
-                    className="chat-ghost-btn"
-                    type="button"
-                    disabled={!canCall}
-                    title={callDisabledReason ?? 'Видеозвонок'}
-                    aria-label="Видеозвонок"
-                    onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'video')}
-                  >
-                    <VideoIcon size={17} />
-                  </button>
+                  {selected.roomType === 'd' ? (
+                    <>
+                      <button
+                        className="chat-ghost-btn"
+                        type="button"
+                        disabled={!canCall}
+                        title={callDisabledReason ?? 'Аудиозвонок'}
+                        aria-label="Аудиозвонок"
+                        onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'audio')}
+                      >
+                        <PhoneIcon size={17} />
+                      </button>
+                      <button
+                        className="chat-ghost-btn"
+                        type="button"
+                        disabled={!canCall}
+                        title={callDisabledReason ?? 'Видеозвонок'}
+                        aria-label="Видеозвонок"
+                        onClick={() => selected.peerUserId && calls.startCall(selected.peerUserId, selected.title, 'video')}
+                      >
+                        <VideoIcon size={17} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="chat-ghost-btn"
+                        type="button"
+                        disabled={!canJoinGroupCall}
+                        title={groupCallDisabledReason ?? 'Групповой аудиозвонок (до 4 участников)'}
+                        aria-label="Групповой аудиозвонок"
+                        onClick={() => calls.joinCallRoom(selected.roomId, 'audio')}
+                      >
+                        <PhoneIcon size={17} />
+                      </button>
+                      <button
+                        className="chat-ghost-btn"
+                        type="button"
+                        disabled={!canJoinGroupCall}
+                        title={groupCallDisabledReason ?? 'Групповой видеозвонок (до 4 участников)'}
+                        aria-label="Групповой видеозвонок"
+                        onClick={() => calls.joinCallRoom(selected.roomId, 'video')}
+                      >
+                        <VideoIcon size={17} />
+                      </button>
+                    </>
+                  )}
                   <button
                     className="chat-ghost-btn"
                     type="button"
