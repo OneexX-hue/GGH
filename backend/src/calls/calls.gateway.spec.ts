@@ -7,12 +7,14 @@ function fakeSocket() {
 describe('CallsGateway', () => {
   let jwt: any;
   let config: any;
+  let callsHistory: any;
   let gateway: CallsGateway;
 
   beforeEach(() => {
     jwt = { verify: jest.fn() };
     config = { get: jest.fn().mockReturnValue('test-secret') };
-    gateway = new CallsGateway(jwt, config);
+    callsHistory = { record: jest.fn().mockResolvedValue(undefined) };
+    gateway = new CallsGateway(jwt, config, callsHistory);
   });
 
   function connectUser(userId: string) {
@@ -111,5 +113,61 @@ describe('CallsGateway', () => {
     expect(second.send).toHaveBeenCalledWith(
       JSON.stringify({ event: 'incoming-call', data: { from: 'user-b', callId: 'call-4', kind: 'audio' } }),
     );
+  });
+
+  it('call-user + call-failed (получатель офлайн) сразу пишет FAILED в историю', () => {
+    const a = connectUser('user-a');
+
+    gateway.onCallUser(a, { to: 'user-offline', callId: 'call-history-1', kind: 'audio' });
+
+    expect(callsHistory.record).toHaveBeenCalledWith(
+      expect.objectContaining({ callerId: 'user-a', calleeId: 'user-offline', kind: 'AUDIO', status: 'FAILED' }),
+    );
+  });
+
+  it('call-user → end-call без accept-call пишет MISSED (звонок не был принят)', () => {
+    const a = connectUser('user-a');
+    connectUser('user-b');
+
+    gateway.onCallUser(a, { to: 'user-b', callId: 'call-history-2', kind: 'video' });
+    gateway.onEndCall(a, { to: 'user-b', callId: 'call-history-2' });
+
+    expect(callsHistory.record).toHaveBeenCalledWith(
+      expect.objectContaining({ callerId: 'user-a', calleeId: 'user-b', kind: 'VIDEO', status: 'MISSED' }),
+    );
+  });
+
+  it('call-user → accept-call → end-call пишет COMPLETED (звонок был принят)', () => {
+    const a = connectUser('user-a');
+    const b = connectUser('user-b');
+
+    gateway.onCallUser(a, { to: 'user-b', callId: 'call-history-3', kind: 'audio' });
+    gateway.onAcceptCall(b, { to: 'user-a', callId: 'call-history-3' });
+    gateway.onEndCall(b, { to: 'user-a', callId: 'call-history-3' });
+
+    expect(callsHistory.record).toHaveBeenCalledWith(
+      expect.objectContaining({ callerId: 'user-a', calleeId: 'user-b', kind: 'AUDIO', status: 'COMPLETED' }),
+    );
+  });
+
+  it('call-user → reject-call пишет REJECTED', () => {
+    const a = connectUser('user-a');
+    const b = connectUser('user-b');
+
+    gateway.onCallUser(a, { to: 'user-b', callId: 'call-history-4', kind: 'audio' });
+    gateway.onRejectCall(b, { to: 'user-a', callId: 'call-history-4' });
+
+    expect(callsHistory.record).toHaveBeenCalledWith(
+      expect.objectContaining({ callerId: 'user-a', calleeId: 'user-b', kind: 'AUDIO', status: 'REJECTED' }),
+    );
+  });
+
+  it('end-call без предшествующего call-user не пишет историю (нет активного звонка)', () => {
+    const a = connectUser('user-a');
+    callsHistory.record.mockClear();
+
+    gateway.onEndCall(a, { to: 'user-b', callId: 'unknown-call' });
+
+    expect(callsHistory.record).not.toHaveBeenCalled();
   });
 });

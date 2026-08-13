@@ -14,6 +14,7 @@ import { HideAndSeekDetailScreen } from './screens/HideAndSeekDetailScreen';
 import { LprScanScreen } from './screens/LprScanScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { FeedScreen } from './screens/FeedScreen';
+import { CallHistoryScreen } from './screens/CallHistoryScreen';
 import { navigationTheme } from './theme';
 import type { RoomType } from './rocketchat/types';
 
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   LprScan: undefined;
   Leaderboard: undefined;
   Feed: undefined;
+  CallHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -73,6 +75,7 @@ export function RootNavigator() {
             <Stack.Screen name="LprScan" component={LprScanScreen} options={{ title: 'Номер авто' }} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: '🏆 Лидерборд' }} />
             <Stack.Screen name="Feed" component={FeedScreen} options={{ title: '📰 Лента' }} />
+            <Stack.Screen name="CallHistory" component={CallHistoryScreen} options={{ title: '📞 История звонков' }} />
           </>
         ) : (
           <>

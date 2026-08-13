@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import { CallKind, CallStatus } from '@prisma/client';
 import type { IncomingMessage } from 'http';
 import type { WebSocket } from 'ws';
+import { CallsHistoryService } from './calls-history.service';
 
 interface AuthenticatedSocket extends WebSocket {
   userId?: string;
@@ -22,6 +24,14 @@ interface RelayToPayload {
   candidate?: unknown;
 }
 
+interface ActiveCall {
+  callerId: string;
+  calleeId: string;
+  kind: CallKind;
+  startedAt: Date;
+  acceptedAt?: Date;
+}
+
 // Сигнальный шлюз WebRTC-звонков — только пересылает offer/answer/ICE
 // между двумя авторизованными участниками, никогда не видит и не
 // обрабатывает сам медиапоток (см. docs/DECISIONS.md, "WebRTC-звонки —
@@ -34,10 +44,14 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // в docs/DECISIONS.md (не масштабируется на несколько инстансов без
   // общего presence-стора).
   private readonly online = new Map<string, AuthenticatedSocket>();
+  // История звонков (блок G) — не для сигнализации, только для записи
+  // завершённых/пропущенных/отклонённых звонков в БД, см. Call в schema.prisma.
+  private readonly activeCalls = new Map<string, ActiveCall>();
 
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly callsHistory: CallsHistoryService,
   ) {}
 
   handleConnection(client: AuthenticatedSocket, request: IncomingMessage) {
@@ -81,6 +95,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('call-user')
   onCallUser(client: AuthenticatedSocket, payload: CallUserPayload) {
     if (!client.userId) return;
+    const startedAt = new Date();
     const delivered = this.send(payload.to, 'incoming-call', {
       from: client.userId,
       callId: payload.callId,
@@ -88,19 +103,37 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     if (!delivered) {
       this.send(client.userId, 'call-failed', { callId: payload.callId, reason: 'user-offline' });
+      void this.callsHistory.record({
+        callerId: client.userId,
+        calleeId: payload.to,
+        kind: payload.kind === 'video' ? CallKind.VIDEO : CallKind.AUDIO,
+        status: CallStatus.FAILED,
+        startedAt,
+        endedAt: startedAt,
+      });
+      return;
     }
+    this.activeCalls.set(payload.callId, {
+      callerId: client.userId,
+      calleeId: payload.to,
+      kind: payload.kind === 'video' ? CallKind.VIDEO : CallKind.AUDIO,
+      startedAt,
+    });
   }
 
   @SubscribeMessage('accept-call')
   onAcceptCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
     this.send(payload.to, 'call-accepted', { from: client.userId, callId: payload.callId });
+    const active = this.activeCalls.get(payload.callId);
+    if (active) active.acceptedAt = new Date();
   }
 
   @SubscribeMessage('reject-call')
   onRejectCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
     this.send(payload.to, 'call-rejected', { from: client.userId, callId: payload.callId });
+    this.finalizeCall(payload.callId, CallStatus.REJECTED);
   }
 
   @SubscribeMessage('offer')
@@ -129,5 +162,31 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   onEndCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
     this.send(payload.to, 'call-ended', { from: client.userId, callId: payload.callId });
+    const active = this.activeCalls.get(payload.callId);
+    this.finalizeCall(payload.callId, active?.acceptedAt ? CallStatus.COMPLETED : CallStatus.MISSED);
+  }
+
+  /**
+   * Записывает завершённый/пропущенный/отклонённый звонок в историю
+   * (блок G) и убирает его из activeCalls. Best-effort: сбой записи
+   * истории не должен ронять сам сигнальный флоу (звонок уже завершён
+   * для участников независимо от того, сохранилась ли история).
+   */
+  private finalizeCall(callId: string, status: CallStatus): void {
+    const active = this.activeCalls.get(callId);
+    if (!active) return;
+    this.activeCalls.delete(callId);
+
+    const endedAt = new Date();
+    this.callsHistory
+      .record({
+        callerId: active.callerId,
+        calleeId: active.calleeId,
+        kind: active.kind,
+        status,
+        startedAt: active.startedAt,
+        endedAt,
+      })
+      .catch((error) => this.logger.warn(`Не удалось записать историю звонка ${callId}: ${(error as Error).message}`));
   }
 }

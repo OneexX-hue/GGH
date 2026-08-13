@@ -7,6 +7,7 @@ import { ShieldLockIcon, LockIcon } from '../components/icons';
 
 const NAV_ITEMS = [
   { href: '/chat', label: 'Чат', icon: '💬' },
+  { href: '/calls', label: 'Звонки', icon: '📞' },
   { href: '/members', label: 'Участники', icon: '👥' },
   { href: '/invites', label: 'Приглашения', icon: '✉️' },
   { href: '/applications', label: 'Заявки', icon: '📝' },

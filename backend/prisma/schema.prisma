@@ -57,6 +57,8 @@ model User {
   lprSubmissions        LprSubmission[]       @relation("LprSubmittedBy")
   lprReviews            LprSubmission[]       @relation("LprReviewedBy")
   messageReports        MessageReport[]       @relation("MessageReporter")
+  callsAsCaller         Call[]                @relation("CallCaller")
+  callsAsCallee         Call[]                @relation("CallCallee")
 
   @@index([status])
 }
@@ -404,6 +406,39 @@ model MessageReport {
 
   @@index([status])
   @@index([roomId, msgId])
+}
+
+// --- История звонков (backend/src/calls/) ----------------------------------
+// CallsGateway остаётся чистым релеем сигнализации (не видит медиа) — эта
+// таблица только для истории завершённых/пропущенных звонков, не для
+// самого сигнального протокола.
+
+enum CallKind {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  COMPLETED
+  MISSED
+  REJECTED
+  FAILED
+}
+
+model Call {
+  id        String     @id @default(uuid())
+  callerId  String
+  caller    User       @relation("CallCaller", fields: [callerId], references: [id])
+  calleeId  String
+  callee    User       @relation("CallCallee", fields: [calleeId], references: [id])
+  kind      CallKind
+  status    CallStatus
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([callerId])
+  @@index([calleeId])
 }
 
 // --- Модуль "LPR" (Этап 2, backend/src/modules/lpr/, ТЗ гл. 3.4) ----------

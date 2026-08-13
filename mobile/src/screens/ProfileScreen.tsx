@@ -114,6 +114,9 @@ export function ProfileScreen({ navigation }: Props) {
               <Chip icon="newspaper-variant-outline" compact onPress={() => navigation.navigate('Feed')}>
                 📰 Лента
               </Chip>
+              <Chip icon="phone-outline" compact onPress={() => navigation.navigate('CallHistory')}>
+                📞 Звонки
+              </Chip>
               <Chip icon="account-check-outline" compact>
                 {me.status}
               </Chip>
