@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
@@ -6,6 +6,7 @@ import { CallKind, CallStatus } from '@prisma/client';
 import type { IncomingMessage } from 'http';
 import type { WebSocket } from 'ws';
 import { CallsHistoryService } from './calls-history.service';
+import { CallsPresenceService } from './calls-presence.service';
 
 interface AuthenticatedSocket extends WebSocket {
   userId?: string;
@@ -38,11 +39,11 @@ interface ActiveCall {
 // архитектура"). Обычный `ws`, не socket.io — сигнализация состоит из
 // пары сообщений на звонок, отдельный клиентский SDK не нужен.
 @WebSocketGateway({ path: '/calls' })
-export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   private readonly logger = new Logger(CallsGateway.name);
-  // In-memory presence на один backend-инстанс — см. явное ограничение
-  // в docs/DECISIONS.md (не масштабируется на несколько инстансов без
-  // общего presence-стора).
+  // Presence НА ЭТОМ инстансе — сокет физически нельзя передать между
+  // процессами. Кросс-инстансная часть — CallsPresenceService (Valkey),
+  // см. docs/DECISIONS.md, "Масштабирование на несколько инстансов".
   private readonly online = new Map<string, AuthenticatedSocket>();
   // История звонков (блок G) — не для сигнализации, только для записи
   // завершённых/пропущенных/отклонённых звонков в БД, см. Call в schema.prisma.
@@ -52,7 +53,16 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly callsHistory: CallsHistoryService,
+    private readonly presence: CallsPresenceService,
   ) {}
+
+  onModuleInit(): void {
+    // Другой инстанс не смог доставить локально — проверяем, есть ли
+    // получатель у НАС, и если да, реально отправляем в сокет.
+    this.presence.setOnRelayMessage(({ targetUserId, event, data }) => {
+      this.sendLocal(targetUserId, event, data as Record<string, unknown>);
+    });
+  }
 
   handleConnection(client: AuthenticatedSocket, request: IncomingMessage) {
     const url = new URL(request.url ?? '', 'http://localhost');
@@ -72,6 +82,7 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       client.userId = payload.sub;
       this.online.set(payload.sub, client);
+      void this.presence.markOnline(payload.sub);
       this.logger.log(`Пользователь ${payload.sub} подключился к сигнализации звонков`);
     } catch {
       client.close(4401, 'Недействительный токен');
@@ -81,28 +92,46 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: AuthenticatedSocket) {
     if (client.userId && this.online.get(client.userId) === client) {
       this.online.delete(client.userId);
+      void this.presence.markOffline(client.userId);
       this.logger.log(`Пользователь ${client.userId} отключился от сигнализации звонков`);
     }
   }
 
-  private send(userId: string, event: string, data: Record<string, unknown>): boolean {
+  private sendLocal(userId: string, event: string, data: Record<string, unknown>): boolean {
     const socket = this.online.get(userId);
     if (!socket) return false;
     socket.send(JSON.stringify({ event, data }));
     return true;
   }
 
+  /**
+   * Доставка получателю независимо от того, на каком backend-инстансе
+   * он подключён. Локальная доставка — быстрый путь (без похода в
+   * Valkey). Если получателя нет локально, но он есть в общем
+   * presence-наборе `calls:online` — публикуем в общий канал relay,
+   * инстанс, у которого он реально подключён, доставит. Возвращает
+   * false только если получателя нет вообще нигде (или Valkey не
+   * настроен и получателя нет локально — тогда как раньше, single-instance).
+   */
+  private async relay(userId: string, event: string, data: Record<string, unknown>): Promise<boolean> {
+    if (this.sendLocal(userId, event, data)) return true;
+    if (!this.presence.enabled) return false;
+    if (!(await this.presence.isOnlineAnywhere(userId))) return false;
+    await this.presence.publishRelay({ targetUserId: userId, event, data });
+    return true;
+  }
+
   @SubscribeMessage('call-user')
-  onCallUser(client: AuthenticatedSocket, payload: CallUserPayload) {
+  async onCallUser(client: AuthenticatedSocket, payload: CallUserPayload) {
     if (!client.userId) return;
     const startedAt = new Date();
-    const delivered = this.send(payload.to, 'incoming-call', {
+    const delivered = await this.relay(payload.to, 'incoming-call', {
       from: client.userId,
       callId: payload.callId,
       kind: payload.kind,
     });
     if (!delivered) {
-      this.send(client.userId, 'call-failed', { callId: payload.callId, reason: 'user-offline' });
+      this.sendLocal(client.userId, 'call-failed', { callId: payload.callId, reason: 'user-offline' });
       void this.callsHistory.record({
         callerId: client.userId,
         calleeId: payload.to,
@@ -122,36 +151,36 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('accept-call')
-  onAcceptCall(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onAcceptCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'call-accepted', { from: client.userId, callId: payload.callId });
+    await this.relay(payload.to, 'call-accepted', { from: client.userId, callId: payload.callId });
     const active = this.activeCalls.get(payload.callId);
     if (active) active.acceptedAt = new Date();
   }
 
   @SubscribeMessage('reject-call')
-  onRejectCall(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onRejectCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'call-rejected', { from: client.userId, callId: payload.callId });
+    await this.relay(payload.to, 'call-rejected', { from: client.userId, callId: payload.callId });
     this.finalizeCall(payload.callId, CallStatus.REJECTED);
   }
 
   @SubscribeMessage('offer')
-  onOffer(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onOffer(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'offer', { from: client.userId, callId: payload.callId, sdp: payload.sdp });
+    await this.relay(payload.to, 'offer', { from: client.userId, callId: payload.callId, sdp: payload.sdp });
   }
 
   @SubscribeMessage('answer')
-  onAnswer(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onAnswer(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'answer', { from: client.userId, callId: payload.callId, sdp: payload.sdp });
+    await this.relay(payload.to, 'answer', { from: client.userId, callId: payload.callId, sdp: payload.sdp });
   }
 
   @SubscribeMessage('ice-candidate')
-  onIceCandidate(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onIceCandidate(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'ice-candidate', {
+    await this.relay(payload.to, 'ice-candidate', {
       from: client.userId,
       callId: payload.callId,
       candidate: payload.candidate,
@@ -159,9 +188,9 @@ export class CallsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('end-call')
-  onEndCall(client: AuthenticatedSocket, payload: RelayToPayload) {
+  async onEndCall(client: AuthenticatedSocket, payload: RelayToPayload) {
     if (!client.userId) return;
-    this.send(payload.to, 'call-ended', { from: client.userId, callId: payload.callId });
+    await this.relay(payload.to, 'call-ended', { from: client.userId, callId: payload.callId });
     const active = this.activeCalls.get(payload.callId);
     this.finalizeCall(payload.callId, active?.acceptedAt ? CallStatus.COMPLETED : CallStatus.MISSED);
   }

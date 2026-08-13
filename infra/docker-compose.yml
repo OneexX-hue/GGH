@@ -38,6 +38,12 @@ services:
       ROCKETCHAT_ADMIN_TOKEN: ''
       ROCKETCHAT_ADMIN_USER_ID: ''
       CREATE_TOKENS_FOR_USERS_SECRET: dev-insecure-rc-token-secret-change-me
+      # Масштабирование сигнализации звонков на несколько backend-инстансов
+      # (docs/DECISIONS.md, "Масштабирование на несколько инстансов") —
+      # указывает на сервис valkey из этого же compose. Опционально: без
+      # этой переменной CallsGateway работает в режиме одного инстанса
+      # (прежнее поведение), Valkey не обязателен для локальной разработки.
+      VALKEY_URL: redis://valkey:6379
     ports:
       - '3001:3001'
 
@@ -81,6 +87,19 @@ services:
       - '3478:3478/udp'
       - '3478:3478/tcp'
       - '49160-49200:49160-49200/udp'
+
+  # Масштабирование сигнализации звонков на несколько backend-инстансов
+  # (docs/DECISIONS.md, "Масштабирование на несколько инстансов") —
+  # Valkey, не Redis: с версии 8.0 Redis — tri-license RSALv2/SSPLv1/AGPLv3
+  # (запрещено правилом 1 CLAUDE.md по умолчанию), Valkey — BSD-3-Clause
+  # форк под Linux Foundation, протокол идентичен (см. docs/LICENSING.md).
+  # Опционален для локальной разработки — без него CallsGateway работает
+  # в режиме одного backend-инстанса (прежнее поведение).
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
 
   # Rocket.Chat — чат-ядро (docs/DECISIONS.md). Официальный образ как есть —
   # сборка "без ee/" технически невозможна без несуществующей официальной
