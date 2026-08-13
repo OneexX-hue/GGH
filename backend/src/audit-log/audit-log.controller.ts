@@ -11,10 +11,23 @@ export class AuditLogController {
 
   @Get()
   @RequirePermission('audit.read')
-  list(@Query('skip') skip?: string, @Query('take') take?: string) {
+  list(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+    @Query('actorUserId') actorUserId?: string,
+    @Query('action') action?: string,
+    @Query('targetType') targetType?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
     return this.auditLogService.list({
       skip: skip ? Number(skip) : undefined,
       take: take ? Number(take) : undefined,
+      actorUserId: actorUserId || undefined,
+      action: action || undefined,
+      targetType: targetType || undefined,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
     });
   }
 }

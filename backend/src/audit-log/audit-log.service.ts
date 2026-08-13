@@ -28,8 +28,27 @@ export class AuditLogService {
     });
   }
 
-  async list(params: { skip?: number; take?: number }) {
+  async list(params: {
+    skip?: number;
+    take?: number;
+    actorUserId?: string;
+    action?: string;
+    targetType?: string;
+    from?: Date;
+    to?: Date;
+  }) {
+    const where: Prisma.AuditLogWhereInput = {
+      actorUserId: params.actorUserId,
+      action: params.action,
+      targetType: params.targetType,
+      createdAt:
+        params.from || params.to
+          ? { gte: params.from, lte: params.to }
+          : undefined,
+    };
+
     return this.prisma.auditLog.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       skip: params.skip ?? 0,
       take: params.take ?? 50,
