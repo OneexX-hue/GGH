@@ -185,6 +185,26 @@ in-memory на процесс).
 | **Valkey** (используется) | **BSD-3-Clause** | Проверено `valkey-io/valkey/COPYING`. Форк Redis под эгидой Linux Foundation (Redis Ltd. отказалась от открытой лицензии в 2024), полностью протокол-совместим — тот же клиент `ioredis` работает без изменений. |
 | `ioredis` (backend) | MIT | Клиент Redis-протокола, работает с Valkey без модификаций (протокол идентичен). |
 
+### CI lint + точечные автотесты компонентов (блок J), проверено 13.08.2026 по полю `license` в package.json на npm registry
+
+Раньше `package.json` во всех трёх пакетах уже содержал скрипт `lint`,
+но сам `eslint` не был установлен — команда была бы гарантированно
+красной. Добавлены минимальные рабочие конфиги (без `prettier` —
+в репозитории его нет и не используется, не тянем ради самого лайнта).
+
+| Компонент | Лицензия | Комментарий |
+|---|---|---|
+| `eslint` (backend, web-admin, dev) | MIT | Пин `^8.57.0` — совместимо с `eslint-config-next@14.2.18` (peer `^7 \|\| ^8`) и с распространённой на момент разработки схемой `.eslintrc.js`/`.eslintrc.json`, не flat-config |
+| `@typescript-eslint/parser` (backend, dev) | MIT | Пин `^7` |
+| `@typescript-eslint/eslint-plugin` (backend, dev) | MIT | Пин `^7` |
+| `eslint-config-next` (web-admin, dev) | MIT | Пин `14.2.18` — версия совпадает с установленным `next@^14.2.18`, тянет `@next/eslint-plugin-next`/`eslint-plugin-react`/`eslint-plugin-react-hooks`/`eslint-plugin-jsx-a11y` (все MIT) как транзитивные зависимости |
+| `jest-environment-jsdom` (web-admin, dev) | MIT | Пин `^29.7.0` — совпадает с мажорной версией установленного `jest@^29.7.0` |
+| `@testing-library/react` (web-admin, dev) | MIT | Рендер компонентов для точечных тестов (`app/login`, `app/feed`) |
+| `@testing-library/jest-dom` (web-admin, dev) | MIT | Доп. матчеры (`toBeInTheDocument` и т.п.) |
+| `jest-expo` (mobile, dev) | MIT | Пин `~52.0.6` — версия отслеживает Expo SDK (проект на SDK 52), даёт preset с транспиляцией RN/Expo-модулей под Jest |
+| `react-test-renderer` (mobile, dev) | MIT | Пин `18.3.1` — точное совпадение с установленным `react@18.3.1` (peer-требование React Native Testing Library) |
+| `@testing-library/react-native` (mobile, dev) | MIT | Пин `13.3.3`, не последняя `14.x` — та требует `react@>=19`, а проект на React 18.3.1 (Expo SDK 52) |
+
 ## Как добавлять новые записи
 
 1. Найти официальный репозиторий пакета

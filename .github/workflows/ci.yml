@@ -45,6 +45,9 @@ jobs:
 
       - run: npx prisma generate
 
+      - name: lint
+        run: npm run lint
+
       - name: nest build
         run: npx nest build
 
@@ -81,6 +84,7 @@ jobs:
           cache-dependency-path: web-admin/package-lock.json
 
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run build
 

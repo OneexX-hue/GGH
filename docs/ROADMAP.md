@@ -194,17 +194,28 @@
   начисление баллов; e2e — полный AppModule против отдельной тестовой БД
   на ключевые auth-эндпоинты). web-admin/mobile: готово точечно — не
   100% покрытие, а критичная бизнес-логика (API-клиенты, media/TTL-
-  маркеры чата); рендер React/RN-компонентов не покрыт — потребовал бы
-  отдельного jsdom/RTL стека, за рамками этого прохода.
+  маркеры чата) **плюс** (блок J) точечный рендер критичных компонентов:
+  web-admin — `app/login/page.test.tsx` (успешный вход + ошибка входа),
+  `app/feed/page.test.tsx` (лента + пустое состояние) через
+  `jest-environment-jsdom`+`@testing-library/react`, второй jest-«проект»
+  рядом с уже существующими `*.spec.ts`; mobile — `Icon.test.tsx`
+  (все зарегистрированные имена иконок рендерятся без падения) и
+  `CallOverlay.test.tsx` (сетка группового звонка из блока I) через
+  `jest-expo`+`@testing-library/react-native`. Не 100% покрытие
+  компонентов — несколько новых взаимодействий, не весь UI.
 - CI/CD — готово: `.github/workflows/ci.yml`, три параллельные джобы
   (backend/web-admin/mobile) на push в `main` и на каждый PR. Backend
   джоба поднимает Postgres как service-контейнер, гоняет unit- и
-  e2e-тесты. Lint-шаг сознательно не включён — ни в backend, ни в
-  web-admin нет рабочего eslint-конфига (пакет ещё не установлен/не
-  настроен), включать здесь заведомо красный шаг не стали — это
-  отдельная задача. Mobile-джоба ограничена `tsc --noEmit` + unit-
-  тестами — нативная сборка (EAS/Xcode/Android SDK) требует реальных
-  credentials разработчика и выполняется отдельно через `eas build`.
+  e2e-тесты. Lint-шаг (блок J) — добавлен: backend (`eslint` +
+  `@typescript-eslint/*`, `.eslintrc.js`) и web-admin (`next lint` +
+  `eslint-config-next`, `.eslintrc.json`) оба проходят чисто (0 ошибок,
+  единичные warning — неиспользуемая переменная в DTO, `<img>` вместо
+  `next/image` — не блокируют CI). Mobile-джоба ограничена
+  `tsc --noEmit` + unit/component-тестами — нативная сборка (EAS/Xcode/
+  Android SDK) требует реальных credentials разработчика и выполняется
+  отдельно через `eas build`; отдельный lint-шаг для mobile не заведён
+  (`package.json` не содержит скрипта `lint`, ESLint в Expo-проектах
+  обычно настраивается отдельно от tsc — вне объёма этого прохода).
 
 ## Этап 4 — Продакшен-готовность
 
