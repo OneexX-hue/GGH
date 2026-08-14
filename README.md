@@ -143,6 +143,15 @@ WebRTC-звонков (docs/DECISIONS.md, "WebRTC-звонки — архите�
 POST-прогоном с тем же форматом payload, что шлёт RC, но не самим
 живым триггером RC.
 
+## Продакшен-деплой
+
+Раздел выше — только локальная разработка. Для реального сервера
+(Ubuntu Server, Timeweb Cloud — см. `docs/DECISIONS.md`, «Хостинг») —
+отдельный `infra/docker-compose.prod.yml` (секреты через `.env`, не
+хардкод; reverse-proxy с автоматическим TLS через Caddy; datastore-сервисы
+не публикуются наружу) и пошаговый гайд:
+**[`docs/deploy/timeweb-ubuntu-guide.md`](docs/deploy/timeweb-ubuntu-guide.md)**.
+
 ## Тесты (backend)
 
 Unit-тесты (моки Prisma/зависимостей, без реальной БД):

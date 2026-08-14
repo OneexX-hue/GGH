@@ -1,0 +1,18 @@
+# Reverse-proxy с автоматическим TLS (Let's Encrypt) для продакшен-
+# деплоя, см. docs/deploy/timeweb-ubuntu-guide.md и
+# docker-compose.prod.yml. Домены подставляются из окружения контейнера
+# (ADMIN_DOMAIN/API_DOMAIN/CHAT_DOMAIN, см. infra/.env). Caddy сам
+# обрабатывает апгрейд до WebSocket — отдельная настройка для
+# /calls (звонки) и DDP-чата не нужна.
+
+{$ADMIN_DOMAIN} {
+	reverse_proxy web-admin:3000
+}
+
+{$API_DOMAIN} {
+	reverse_proxy backend:3001
+}
+
+{$CHAT_DOMAIN} {
+	reverse_proxy rocketchat:3000
+}

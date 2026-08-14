@@ -1,0 +1,163 @@
+# Продакшен-конфигурация — см. docs/deploy/timeweb-ubuntu-guide.md.
+# В отличие от docker-compose.yml (локальная разработка):
+# - секреты берутся из infra/.env (скопировать с infra/.env.example и
+#   заполнить реальными значениями), не захардкожены;
+# - postgres/valkey/mongo НЕ публикуются на хост — доступны только
+#   внутри docker-сети, наружу их слушать в интернете не нужно и
+#   небезопасно;
+# - добавлен Caddy — reverse-proxy с автоматическим TLS (Let's Encrypt)
+#   перед web-admin/backend/Rocket.Chat, наружу открыты только 80/443
+#   (+ порты coturn — тому нужен прямой UDP/TCP, через HTTP-прокси не
+#   работает, отдельное ограничение протокола STUN/TURN).
+#
+# Запуск: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carclub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: carclub
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U carclub']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://carclub:${POSTGRES_PASSWORD}@postgres:5432/carclub?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+      ROCKETCHAT_BASE_URL: http://rocketchat:3000
+      ROCKETCHAT_WS_URL: ws://rocketchat:3000/websocket
+      # Заполняются ПОСЛЕ первичной настройки Rocket.Chat (setup wizard)
+      # — см. шаг 7 гайда. До этого chat-bridge работает в no-op режиме.
+      ROCKETCHAT_ADMIN_TOKEN: ${ROCKETCHAT_ADMIN_TOKEN:-}
+      ROCKETCHAT_ADMIN_USER_ID: ${ROCKETCHAT_ADMIN_USER_ID:-}
+      CREATE_TOKENS_FOR_USERS_SECRET: ${CREATE_TOKENS_FOR_USERS_SECRET}
+      CHAT_MESSAGE_WEBHOOK_SECRET: ${CHAT_MESSAGE_WEBHOOK_SECRET}
+      # Масштабирование сигнализации звонков на несколько backend-
+      # инстансов (docs/DECISIONS.md) — опционально, но раз Valkey уже
+      # в стеке, используем его сразу.
+      VALKEY_URL: redis://valkey:6379
+      MEDIA_STORAGE_DIR: ./storage-data
+      MEDIA_ENCRYPTION_KEY: ${MEDIA_ENCRYPTION_KEY}
+      # local (диск контейнера, персистентность через volume ниже) или
+      # s3 (рекомендуется для прода — не зависит от диска одного
+      # контейнера; Timeweb Cloud Object Storage S3-совместимо, см. гайд).
+      MEDIA_STORAGE_DRIVER: ${MEDIA_STORAGE_DRIVER:-local}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      # Сторонний платный API распознавания номеров — опционально, без
+      # ключа модуль отвечает понятной ошибкой конфигурации, не падает.
+      LPR_API_KEY: ${LPR_API_KEY:-}
+      DIGEST_ROOM_ID: ${DIGEST_ROOM_ID:-}
+    volumes:
+      - media-storage:/app/storage-data
+
+  web-admin:
+    build:
+      context: ../web-admin
+      args:
+        # NEXT_PUBLIC_* встраиваются в бандл на этапе сборки (см.
+        # web-admin/Dockerfile) — сюда идут реальные публичные домены,
+        # не имена docker-сервисов.
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN}
+        NEXT_PUBLIC_TURN_URL: turn:${DOMAIN}:3478
+        NEXT_PUBLIC_TURN_USERNAME: carclub
+        NEXT_PUBLIC_TURN_CREDENTIAL: ${TURN_PASSWORD}
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # STUN/TURN для WebRTC-звонков (docs/DECISIONS.md) — порты слушают
+  # напрямую на хосте, TURN-протокол не проксируется через Caddy/HTTP.
+  # На проде — статический пароль (--lt-cred-mech), не time-limited
+  # REST-credentials (coturn поддерживает через use-auth-secret — более
+  # тонкая настройка, отдельный шаг конфигурации, не входит сюда).
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    command:
+      - -n
+      - --lt-cred-mech
+      - --realm=${DOMAIN}
+      - --user=carclub:${TURN_PASSWORD}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-cli
+    ports:
+      - '3478:3478/udp'
+      - '3478:3478/tcp'
+      - '49160-49200:49160-49200/udp'
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+
+  rocketchat:
+    image: rocket.chat:6.14
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URL: mongodb://mongo:27017/rocketchat?replicaSet=rs0
+      MONGO_OPLOG_URL: mongodb://mongo:27017/local?replicaSet=rs0
+      ROOT_URL: https://${CHAT_DOMAIN}
+      PORT: 3000
+      CREATE_TOKENS_FOR_USERS_SECRET: ${CREATE_TOKENS_FOR_USERS_SECRET}
+
+  # Однонодовый replica set — обязателен для Rocket.Chat 4.0+ (oplog/change streams).
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    command: mongod --replSet rs0 --oplogSize 128
+    volumes:
+      - rocketchat-mongo-data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      CHAT_DOMAIN: ${CHAT_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+      - web-admin
+      - rocketchat
+
+volumes:
+  postgres-data:
+  rocketchat-mongo-data:
+  media-storage:
+  caddy-data:
+  caddy-config:
