@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "CarClub",
+    "slug": "carclub-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f1115"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "club.carclub.app"
+    },
+    "android": {
+      "package": "club.carclub.app"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CarClub использует доступ к галерее, чтобы вы могли отправить фото в чат клуба."
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "CarClub использует камеру для видеозвонков участникам клуба.",
+          "microphonePermission": "CarClub использует микрофон для аудио- и видеозвонков участникам клуба."
+        }
+      ]
+    ]
+  }
+}

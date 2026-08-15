@@ -1,0 +1,403 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { View, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
+import { Text, TextInput, IconButton, HelperText, ActivityIndicator, Menu } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useChat } from '../chat-context';
+import { useAuth } from '../auth-context';
+import { useCalls } from '../calls/calls-context';
+import { apiFetch } from '../api';
+import type { RCMessage } from '../rocketchat/types';
+import type { RootStackParamList } from '../navigation';
+import { uploadMedia, MediaApiError } from '../media/media-client';
+import { decodeMediaMarker, encodeMediaMarker } from '../media/marker';
+import { decodeTtlMarker, encodeTtlMarker } from '../media/ttl-marker';
+import { ProtectedMediaViewer } from '../media/ProtectedMediaViewer';
+import { Icon } from '../components/Icon';
+import { FadeIn } from '../components/FadeIn';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Conversation'>;
+
+const TTL_PRESETS: { label: string; seconds: number | null }[] = [
+  { label: 'Выкл.', seconds: null },
+  { label: '10 секунд', seconds: 10 },
+  { label: '1 минута', seconds: 60 },
+  { label: '1 час', seconds: 60 * 60 },
+  { label: '24 часа', seconds: 24 * 60 * 60 },
+];
+
+function formatMessageTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatRemaining(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  if (totalSeconds < 60) return `${totalSeconds}с`;
+  const totalMinutes = Math.ceil(totalSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}м`;
+  return `${Math.ceil(totalMinutes / 60)}ч`;
+}
+
+export function ConversationScreen({ route, navigation }: Props) {
+  const { roomId, roomType, title } = route.params;
+  const { restClient, realtimeClient, currentRocketChatUserId } = useChat();
+  const { token: authToken } = useAuth();
+  const calls = useCalls();
+  const [messages, setMessages] = useState<RCMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [ttlSeconds, setTtlSeconds] = useState<number | null>(null);
+  const [ttlMenuVisible, setTtlMenuVisible] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [peerUserId, setPeerUserId] = useState<string | null>(route.params.peerUserId ?? null);
+  const seenIds = useRef(new Set<string>());
+
+  // Звонки адресуются реальному userId, не RC id/псевдониму (см.
+  // docs/DECISIONS.md, "WebRTC-звонки — архитектура"). Для DM,
+  // созданных через NewChatScreen, userId уже известен из параметров
+  // навигации; для уже существующих чатов резолвим лениво по RC-имени
+  // первого чужого сообщения в истории — тот же приём, что в web-admin.
+  useEffect(() => {
+    if (roomType !== 'd' || peerUserId || messages.length === 0) return;
+    const theirMessage = messages.find((m) => m.u._id !== currentRocketChatUserId);
+    if (!theirMessage) return;
+    calls.resolvePeerUserIdByRcUsername(theirMessage.u.username).then((id) => {
+      if (id) setPeerUserId(id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomType, peerUserId, messages, currentRocketChatUserId]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title,
+      headerRight:
+        roomType === 'd'
+          ? () => (
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={styles.headerBtn}
+                  disabled={!peerUserId || calls.status !== 'idle'}
+                  onPress={() => peerUserId && calls.startCall(peerUserId, title, 'audio')}
+                >
+                  <Icon
+                    name="phone"
+                    size={19}
+                    color={peerUserId && calls.status === 'idle' ? '#f4f6f8' : '#4a5158'}
+                  />
+                </Pressable>
+                <Pressable
+                  style={styles.headerBtn}
+                  disabled={!peerUserId || calls.status !== 'idle'}
+                  onPress={() => peerUserId && calls.startCall(peerUserId, title, 'video')}
+                >
+                  <Icon
+                    name="video"
+                    size={19}
+                    color={peerUserId && calls.status === 'idle' ? '#f4f6f8' : '#4a5158'}
+                  />
+                </Pressable>
+              </View>
+            )
+          : // Групповой звонок (mesh, до 4 участников, см.
+            // docs/DECISIONS.md) — та же комната чата служит комнатой
+            // звонка, без отдельного изобретения "id комнаты звонка".
+            () => {
+              const groupBusy = !calls.ready || Boolean(calls.group) || calls.status !== 'idle';
+              return (
+                <View style={styles.headerActions}>
+                  <Pressable
+                    style={styles.headerBtn}
+                    disabled={groupBusy}
+                    onPress={() => calls.joinCallRoom(roomId, 'audio')}
+                  >
+                    <Icon name="phone" size={19} color={groupBusy ? '#4a5158' : '#f4f6f8'} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.headerBtn}
+                    disabled={groupBusy}
+                    onPress={() => calls.joinCallRoom(roomId, 'video')}
+                  >
+                    <Icon name="video" size={19} color={groupBusy ? '#4a5158' : '#f4f6f8'} />
+                  </Pressable>
+                </View>
+              );
+            },
+    });
+  }, [navigation, title, roomType, roomId, peerUserId, calls.status, calls.ready, calls.group]);
+
+  useEffect(() => {
+    if (!restClient) return;
+    restClient
+      .getHistory(roomType, roomId)
+      .then((history) => {
+        history.forEach((m) => seenIds.current.add(m._id));
+        setMessages(history);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Не удалось загрузить историю'));
+  }, [restClient, roomId, roomType]);
+
+  useEffect(() => {
+    if (!realtimeClient) return;
+    return realtimeClient.onRoomMessage(roomId, (message) => {
+      if (seenIds.current.has(message._id)) return;
+      seenIds.current.add(message._id);
+      setMessages((prev) => [message, ...prev]);
+    });
+  }, [realtimeClient, roomId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  async function scheduleExpiry(msgId: string, expiresAt: string) {
+    if (!authToken) return;
+    try {
+      await apiFetch(`/chat-bridge/messages/${roomId}/${msgId}/expire-at`, {
+        method: 'POST',
+        token: authToken,
+        body: { expiresAt },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось включить самоуничтожение сообщения');
+    }
+  }
+
+  async function sendBody(body: string) {
+    if (!restClient) return;
+    const expiresAt = ttlSeconds ? new Date(Date.now() + ttlSeconds * 1000).toISOString() : null;
+    const wire = expiresAt ? encodeTtlMarker({ expiresAt, body }) : body;
+    const sent = await restClient.postMessage(roomId, wire);
+    if (!seenIds.current.has(sent._id)) {
+      seenIds.current.add(sent._id);
+      setMessages((prev) => [sent, ...prev]);
+    }
+    if (expiresAt) {
+      await scheduleExpiry(sent._id, expiresAt);
+    }
+  }
+
+  async function onSend() {
+    if (!draft.trim()) return;
+    const text = draft.trim();
+    setDraft('');
+    try {
+      await sendBody(text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение');
+    }
+  }
+
+  async function onPickPhoto() {
+    if (!restClient || !authToken) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Нет доступа к галерее');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+
+    const asset = result.assets[0];
+    setUploading(true);
+    setError(null);
+    try {
+      const upload = await uploadMedia(asset.uri, asset.mimeType ?? 'image/jpeg', asset.fileName ?? 'photo.jpg', authToken);
+      const marker = encodeMediaMarker({ mediaId: upload.mediaId, kind: upload.kind });
+      await sendBody(marker);
+    } catch (err) {
+      setError(err instanceof MediaApiError || err instanceof Error ? err.message : 'Не удалось отправить фото');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function reportMessage(msgId: string, reason: string) {
+    if (!authToken) return;
+    try {
+      await apiFetch(`/chat-bridge/messages/${roomId}/${msgId}/report`, {
+        method: 'POST',
+        token: authToken,
+        body: { reason },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить жалобу');
+    }
+  }
+
+  function onLongPressMessage(msgId: string) {
+    Alert.alert('Пожаловаться на сообщение', 'Выберите причину', [
+      { text: 'Спам', onPress: () => reportMessage(msgId, 'Спам') },
+      { text: 'Оскорбления', onPress: () => reportMessage(msgId, 'Оскорбления') },
+      { text: 'Другое', onPress: () => reportMessage(msgId, 'Другое') },
+      { text: 'Отмена', style: 'cancel' },
+    ]);
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80}
+    >
+      {error && <HelperText type="error" style={styles.error}>⚠️ {error}</HelperText>}
+      <FlatList
+        style={styles.list}
+        data={messages}
+        inverted
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => {
+          const mine = item.u._id === currentRocketChatUserId;
+          const ttl = decodeTtlMarker(item.msg);
+          const remainingMs = ttl ? new Date(ttl.expiresAt).getTime() - now : null;
+          const expired = ttl !== null && remainingMs !== null && remainingMs <= 0;
+          const contentText = ttl ? ttl.body : item.msg;
+          const mediaMarker = expired ? null : decodeMediaMarker(contentText);
+
+          return (
+            <FadeIn style={[styles.bubbleRow, mine ? styles.bubbleRowMine : undefined]}>
+              <Pressable
+                disabled={mine}
+                onLongPress={() => onLongPressMessage(item._id)}
+                style={[
+                  mediaMarker ? styles.mediaBubble : styles.bubble,
+                  mine ? styles.bubbleMine : styles.bubbleTheirs,
+                ]}
+              >
+                {!mine && <Text style={styles.author}>{item.u.name ?? item.u.username}</Text>}
+                {expired ? (
+                  <Text style={mine ? styles.textMine : styles.textTheirs}>🔥 Сообщение исчезло</Text>
+                ) : mediaMarker ? (
+                  <ProtectedMediaViewer mediaId={mediaMarker.mediaId} kind={mediaMarker.kind} />
+                ) : (
+                  <>
+                    <Text style={mine ? styles.textMine : styles.textTheirs}>{contentText}</Text>
+                    <View style={styles.bubbleMeta}>
+                      <Text style={styles.bubbleMetaText}>{formatMessageTime(item.ts)}</Text>
+                      <Icon name="lock-solid" size={11} color="#8e979f" />
+                    </View>
+                  </>
+                )}
+                {ttl && !expired && remainingMs !== null && (
+                  <View style={styles.timerRow}>
+                    <View style={styles.timerRing}>
+                      <Text style={styles.timerRingText}>{formatRemaining(remainingMs)}</Text>
+                    </View>
+                    <Text style={[styles.ttlBadge, mine ? styles.ttlBadgeMine : styles.ttlBadgeTheirs]}>
+                      исчезнет после прочтения
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </FadeIn>
+          );
+        }}
+      />
+      <View style={styles.inputRow}>
+        {uploading ? (
+          <ActivityIndicator size={20} style={styles.attachButton} />
+        ) : (
+          <IconButton
+            icon={(props) => <Icon name="paperclip" size={props.size * 0.75} color={props.color} />}
+            mode="outlined"
+            onPress={onPickPhoto}
+            style={styles.attachButton}
+          />
+        )}
+        <Menu
+          visible={ttlMenuVisible}
+          onDismiss={() => setTtlMenuVisible(false)}
+          anchor={
+            <IconButton
+              icon={(props) => (
+                <Icon name="timer" size={props.size * 0.75} color={ttlSeconds ? '#e8edf2' : props.color} />
+              )}
+              mode="outlined"
+              onPress={() => setTtlMenuVisible(true)}
+              style={styles.attachButton}
+            />
+          }
+        >
+          {TTL_PRESETS.map((preset) => (
+            <Menu.Item
+              key={preset.label}
+              title={preset.label}
+              onPress={() => {
+                setTtlSeconds(preset.seconds);
+                setTtlMenuVisible(false);
+              }}
+            />
+          ))}
+        </Menu>
+        <TextInput
+          mode="outlined"
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Сообщение…"
+          multiline
+          style={styles.input}
+          dense
+        />
+        <IconButton
+          icon={(props) => <Icon name="send" size={props.size * 0.75} color={props.color} />}
+          mode="contained"
+          onPress={onSend}
+          disabled={!draft.trim()}
+        />
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#050506' },
+  list: { flex: 1, paddingHorizontal: 12 },
+  bubbleRow: { flexDirection: 'row', marginVertical: 4 },
+  bubbleRowMine: { justifyContent: 'flex-end' },
+  bubble: { maxWidth: '80%', borderRadius: 14, padding: 10 },
+  mediaBubble: { maxWidth: '80%', borderRadius: 14, padding: 6 },
+  bubbleMine: { backgroundColor: '#24272b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-end' },
+  bubbleTheirs: { backgroundColor: '#202226', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignSelf: 'flex-start' },
+  author: { color: '#e8edf2', fontSize: 12, marginBottom: 2 },
+  textMine: { color: '#f4f6f8', fontSize: 15 },
+  textTheirs: { color: '#f4f6f8', fontSize: 15 },
+  bubbleMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'flex-end', marginTop: 4 },
+  bubbleMetaText: { fontSize: 11, color: '#8e979f' },
+  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  timerRing: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerRingText: { fontSize: 9, color: '#f4f6f8', fontWeight: '700' },
+  ttlBadge: { fontSize: 10.5, opacity: 0.75, flexShrink: 1 },
+  ttlBadgeMine: { color: '#8e979f' },
+  ttlBadgeTheirs: { color: '#8e979f' },
+  inputRow: {
+    flexDirection: 'row',
+    padding: 8,
+    gap: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.085)',
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    maxHeight: 100,
+  },
+  attachButton: { marginBottom: 2 },
+  error: { textAlign: 'center' },
+  headerActions: { flexDirection: 'row', gap: 4, marginRight: 4 },
+  headerBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+});

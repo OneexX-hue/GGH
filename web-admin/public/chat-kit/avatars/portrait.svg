@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <clipPath id="cp"><circle cx="64" cy="64" r="64"/></clipPath>
+    <radialGradient id="pbg" cx="42%" cy="24%" r="80%">
+      <stop offset="0" stop-color="#5A6673"/><stop offset=".4" stop-color="#242C35"/><stop offset="1" stop-color="#070B0F"/>
+    </radialGradient>
+    <linearGradient id="phood" x1=".15" y1="0" x2=".85" y2="1">
+      <stop offset="0" stop-color="#D2DDE6" stop-opacity=".72"/><stop offset=".5" stop-color="#4C5661" stop-opacity=".42"/><stop offset="1" stop-color="#080D12" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ptor" x1=".2" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#2E3740"/><stop offset="1" stop-color="#080D12"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#cp)">
+    <rect width="128" height="128" fill="url(#pbg)"/>
+    <path d="M22 128c3-26.5 18.6-39 42-39s39 12.5 42 39Z" fill="url(#ptor)"/>
+    <path d="M64 22c-17.2 0-27.8 12.6-27.8 29.8 0 16.4 8.6 31.4 27.8 31.4s27.8-15 27.8-31.4C91.8 34.6 81.2 22 64 22Z" fill="#070C11" stroke="#C7D4DF" stroke-opacity=".18" stroke-width=".8"/>
+    <path d="M64 22c-17.2 0-27.8 12.6-27.8 29.8 0 5.6 1 10.9 3 15.5-1.4-19.6 6.4-34.5 24.8-34.5 11 0 18.8 6 22.8 15.6C88.4 30.6 79.4 22 64 22Z" fill="url(#phood)"/>
+    <path d="M43.6 54.6c4.8-3.2 10.6-3.2 15.4 0-4.6 3-10.6 3-15.4 0Zm25.4 0c4.8-3.2 10.6-3.2 15.4 0-4.6 3-10.6 3-15.4 0Z" fill="#D2DEE8" fill-opacity=".7"/>
+    <path d="M36.5 88c7.4-7 16.6-10.6 27.5-10.6S84.1 81 91.5 88c-7.2 6.2-16.4 9.4-27.5 9.4S43.7 94.2 36.5 88Z" fill="#0D1218" fill-opacity=".8"/>
+    <circle cx="64" cy="64" r="62.5" fill="none" stroke="#D3DFEA" stroke-opacity=".38" stroke-width="2"/>
+  </g>
+</svg>

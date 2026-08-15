@@ -11,6 +11,19 @@ out-tsc
 # dependencies
 node_modules
 
+# env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+
+# Локальное dev-хранилище зашифрованных медиа (backend/src/media/storage)
+backend/storage-data/
+backend/storage-data-e2e/
+backend/coverage/
+
 # IDEs and editors
 /.idea
 .project

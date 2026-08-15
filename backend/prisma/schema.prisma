@@ -1,0 +1,478 @@
+// CarClub Platform — схема ядра (Этап 1).
+// Игровые модули (Этап 2+, ТЗ гл. 3.5, 5.4) получат собственные схемы/БД
+// и не описываются здесь — ядро не должно знать об их внутренней структуре,
+// только о записи в ModuleDefinition (реестр модулей) и агрегированных очках.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Пользователи и роли (ТЗ гл. 2) --------------------------------------
+
+enum UserStatus {
+  PENDING // ждёт модерации заявки на вступление
+  ACTIVE
+  BANNED
+}
+
+model User {
+  id                String   @id @default(uuid())
+  phone             String?  @unique
+  email             String?  @unique
+  passwordHash      String
+  displayName       String
+  avatarUrl         String?
+  status            UserStatus @default(PENDING)
+  pointsTotal       Int      @default(0) // сводный агрегат, обновляется событиями модулей (Этап 2)
+
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String? // otplib TOTP secret, обязателен для админ-ролей до включения 2FA
+
+  rocketChatUserId  String? @unique // связка с профилем в Rocket.Chat (chat-bridge)
+  chatAlias         String? @unique // псевдоним, который RC показывает как имя профиля вместо displayName (см. DECISIONS.md)
+  pushToken         String? // Expo push token с мобильного клиента, см. backend/src/push/
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  roles                 UserRole[]
+  vehicles              Vehicle[]
+  createdInvites        Invite[]              @relation("InviteCreatedBy")
+  inviteRedemptions     InviteRedemption[]
+  reviewedApplications  MembershipApplication[] @relation("ApplicationReviewedBy")
+  auditLogEntries       AuditLog[]            @relation("AuditActor")
+  uploadedMedia         ChatMedia[]           @relation("MediaUploadedBy")
+  mediaAccessLogEntries MediaAccessLog[]      @relation("MediaViewer")
+  statEvents            StatEvent[]           @relation("StatEventUser")
+  createdQuests         Quest[]               @relation("QuestCreatedBy")
+  questRedemptions      QuestCheckpointRedemption[] @relation("QuestRedemptions")
+  createdHideAndSeekRounds HideAndSeekRound[]  @relation("HideAndSeekRoundCreatedBy")
+  hiddenInRounds        HideAndSeekRound[]    @relation("HideAndSeekRoundHider")
+  hideAndSeekFinds      HideAndSeekFind[]     @relation("HideAndSeekFindSeeker")
+  lprSubmissions        LprSubmission[]       @relation("LprSubmittedBy")
+  lprReviews            LprSubmission[]       @relation("LprReviewedBy")
+  messageReports        MessageReport[]       @relation("MessageReporter")
+  callsAsCaller         Call[]                @relation("CallCaller")
+  callsAsCallee         Call[]                @relation("CallCallee")
+
+  @@index([status])
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // например "owner", "super_admin", "event_admin", "chat_moderator", "member", "guest"
+  description String?
+  isSystem    Boolean  @default(false) // системные роли (Owner) нельзя удалить/переименовать из админки
+  createdAt   DateTime @default(now())
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String @id @default(uuid())
+  key         String @unique // например "invites.create", "roles.manage", "chat.moderate"
+  description String?
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+}
+
+// --- Приглашения и заявки на вступление (ТЗ гл. 2.1) ----------------------
+
+enum InviteType {
+  SINGLE_USE
+  MULTI_USE
+  PERSONAL // привязан к конкретному email/телефону
+}
+
+model Invite {
+  id              String     @id @default(uuid())
+  code            String     @unique
+  type            InviteType
+  maxUses         Int? // обязателен для MULTI_USE, null для SINGLE_USE (=1) и PERSONAL (=1)
+  usesCount       Int        @default(0)
+  personalContact String? // email или телефон — только для PERSONAL
+
+  createdByUserId String
+  createdBy       User     @relation("InviteCreatedBy", fields: [createdByUserId], references: [id])
+
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  redemptions  InviteRedemption[]
+  applications MembershipApplication[]
+
+  @@index([code])
+}
+
+model InviteRedemption {
+  id         String   @id @default(uuid())
+  inviteId   String
+  invite     Invite   @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  redeemedAt DateTime @default(now())
+
+  @@unique([inviteId, userId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model MembershipApplication {
+  id          String            @id @default(uuid())
+  inviteId    String?
+  invite      Invite?           @relation(fields: [inviteId], references: [id])
+  applicantName String
+  contact     String // email или телефон
+  status      ApplicationStatus @default(PENDING)
+
+  reviewedByUserId String?
+  reviewedBy       User?    @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+// --- Профиль/авто (ТЗ гл. 3.1) --------------------------------------------
+
+model Vehicle {
+  id            String  @id @default(uuid())
+  ownerUserId   String
+  owner         User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  make          String
+  model         String
+  plateNumber   String // тестовые значения — с префиксом TEST- (см. CLAUDE.md)
+  isPlatePublic Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([plateNumber])
+}
+
+// --- Журнал действий администраторов (ТЗ гл. 3.7, обязателен) -------------
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String?
+  actor        User?    @relation("AuditActor", fields: [actorUserId], references: [id])
+  action       String // например "invite.create", "role.assign", "user.ban"
+  targetType   String?
+  targetId     String?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// --- Медиа в чате + защита (ТЗ гл. 3.3) -------------------------------------
+// Байты никогда не проходят через Rocket.Chat — только зашифрованное
+// хранилище на нашем backend (см. docs/DECISIONS.md, "Хранилище медиа
+// в чате"). RC несёт только текстовый маркер-ссылку в теле сообщения.
+
+enum ChatMediaKind {
+  PHOTO
+  VIDEO
+}
+
+model ChatMedia {
+  id              String        @id @default(uuid())
+  uploaderUserId  String
+  uploader        User          @relation("MediaUploadedBy", fields: [uploaderUserId], references: [id])
+  kind            ChatMediaKind
+  storageKey      String // ключ в StorageAdapter (см. backend/src/media/storage)
+  mimeType        String
+  sizeBytes       Int
+  iv              String // AES-256-GCM initialization vector (base64)
+  authTag         String // AES-256-GCM auth tag (base64)
+  createdAt       DateTime      @default(now())
+
+  accessLogs MediaAccessLog[]
+
+  @@index([uploaderUserId])
+}
+
+enum MediaAccessAction {
+  VIEW
+  DOWNLOAD_ATTEMPT
+  SCREENSHOT_DETECTED
+}
+
+model MediaAccessLog {
+  id           String            @id @default(uuid())
+  mediaId      String
+  media        ChatMedia         @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  viewerUserId String
+  viewer       User              @relation("MediaViewer", fields: [viewerUserId], references: [id])
+  action       MediaAccessAction
+  metadata     Json?
+  createdAt    DateTime          @default(now())
+
+  @@index([mediaId])
+  @@index([viewerUserId])
+}
+
+// --- Реестр игровых модулей (ТЗ гл. 3.5) -----------------------------------
+
+model ModuleDefinition {
+  id          String   @id @default(uuid())
+  key         String   @unique // например "auto-quest", "hide-and-seek", "lpr-scoring"
+  name        String
+  description String?
+  isEnabled   Boolean  @default(false)
+  config      Json     @default("{}") // правила начисления баллов, даты проведения и т.д. — специфично модулю
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  statEvents StatEvent[]
+}
+
+// --- Геймификация: журнал событий начисления баллов (ТЗ гл. 3.6) ----------
+// Общая инфраструктура для всех игровых модулей (не только авто-квеста) —
+// из неё строится и сводный лидерборд клуба (через User.pointsTotal,
+// обновляется в той же транзакции, см. ModulesRegistryService), и
+// лидерборд по конкретному модулю (ModulesRegistryService.leaderboard).
+model StatEvent {
+  id         String           @id @default(uuid())
+  moduleKey  String
+  moduleDef  ModuleDefinition @relation(fields: [moduleKey], references: [key])
+  userId     String
+  user       User             @relation("StatEventUser", fields: [userId], references: [id])
+  points     Int
+  reason     String
+  occurredAt DateTime
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+
+  @@index([moduleKey, userId])
+  @@index([moduleKey, createdAt])
+  @@index([userId])
+}
+
+// --- Модуль "Авто-квест" (Этап 2, backend/src/modules/auto-quest/) --------
+// Прагматичное упрощение MVP (см. docs/DECISIONS.md, "Игровые модули —
+// физическое размещение кода"): таблицы в той же Postgres, с явным
+// префиксом Quest*, без прямых связей из ядра кроме ссылок на
+// User/ModuleDefinition. Физическое разделение БД — Этап 4.
+model Quest {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean   @default(true) // ручное завершение организатором, отдельно от isEnabled модуля
+  createdByUserId String
+  createdBy       User      @relation("QuestCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  checkpoints QuestCheckpoint[]
+}
+
+model QuestCheckpoint {
+  id          String   @id @default(uuid())
+  questId     String
+  quest       Quest    @relation(fields: [questId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  code        String   // секретный код на физическом чекпоинте — plaintext, как Invite.code
+  points      Int
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  redemptions QuestCheckpointRedemption[]
+
+  @@unique([questId, code])
+}
+
+model QuestCheckpointRedemption {
+  id           String          @id @default(uuid())
+  checkpointId String
+  checkpoint   QuestCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User            @relation("QuestRedemptions", fields: [userId], references: [id])
+  statEventId  String?         @unique
+  redeemedAt   DateTime        @default(now())
+
+  @@unique([checkpointId, userId]) // анти-фрод: одно начисление на пару чекпоинт-участник
+  @@index([userId])
+}
+
+// --- Модуль "Прятки" (Этап 2, backend/src/modules/hide-and-seek/) ---------
+// Тот же принцип, что у авто-квеста: верификация секретным кодом,
+// передаваемым лично при личном контакте, не GPS и не фото-распознаванием
+// (см. docs/DECISIONS.md — обе развилки заблокированы). Один участник
+// раунда назначается "прячущимся" (hider) организатором; когда его
+// физически находит другой участник ("seeker"), hider называет секретный
+// код лично, seeker вводит его в приложении и получает баллы.
+model HideAndSeekRound {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  startsAt        DateTime?
+  endsAt          DateTime?
+  isActive        Boolean   @default(true) // ручное завершение организатором
+  hiderUserId     String
+  hider           User      @relation("HideAndSeekRoundHider", fields: [hiderUserId], references: [id])
+  code            String    // секретный код, называемый hider'ом лично — plaintext, как Quest.code
+  points          Int
+  createdByUserId String
+  createdBy       User      @relation("HideAndSeekRoundCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  finds HideAndSeekFind[]
+}
+
+model HideAndSeekFind {
+  id            String           @id @default(uuid())
+  roundId       String
+  round         HideAndSeekRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  seekerUserId  String
+  seeker        User             @relation("HideAndSeekFindSeeker", fields: [seekerUserId], references: [id])
+  statEventId   String?          @unique
+  foundAt       DateTime         @default(now())
+
+  @@unique([roundId, seekerUserId]) // анти-фрод: один seeker получает баллы за раунд один раз
+  @@index([seekerUserId])
+}
+
+// --- Самоуничтожающиеся сообщения (docs/DECISIONS.md "Псевдонимная
+// личность в чате и самоуничтожающиеся сообщения") -----------------------
+// Техническая запись для отложенного удаления, не журнал: Rocket.Chat —
+// источник истины по самим сообщениям, здесь только expiresAt для
+// MessageExpiryService (chat-bridge), которая реально вызывает
+// ChatBridgeService.deleteMessage по истечении срока.
+model ExpiringMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  msgId     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+// --- Жалобы на сообщения (расширенная модерация) --------------------------
+
+enum MessageReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model MessageReport {
+  id             String              @id @default(uuid())
+  roomId         String
+  msgId          String
+  reporterUserId String
+  reporter       User                @relation("MessageReporter", fields: [reporterUserId], references: [id])
+  reason         String
+  status         MessageReportStatus @default(OPEN)
+  createdAt      DateTime            @default(now())
+
+  @@index([status])
+  @@index([roomId, msgId])
+}
+
+// --- История звонков (backend/src/calls/) ----------------------------------
+// CallsGateway остаётся чистым релеем сигнализации (не видит медиа) — эта
+// таблица только для истории завершённых/пропущенных звонков, не для
+// самого сигнального протокола.
+
+enum CallKind {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  COMPLETED
+  MISSED
+  REJECTED
+  FAILED
+}
+
+model Call {
+  id        String     @id @default(uuid())
+  callerId  String
+  caller    User       @relation("CallCaller", fields: [callerId], references: [id])
+  calleeId  String
+  callee    User       @relation("CallCallee", fields: [calleeId], references: [id])
+  kind      CallKind
+  status    CallStatus
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([callerId])
+  @@index([calleeId])
+}
+
+// --- Модуль "LPR" (Этап 2, backend/src/modules/lpr/, ТЗ гл. 3.4) ----------
+// Ключ модуля в реестре — "lpr-scoring" (см. ModuleDefinition.key выше).
+// Распознавание номера — через стороннее платное API (см.
+// docs/DECISIONS.md, "LPR — бюджетный путь"), не собственная модель.
+// Низкая уверенность распознавания → PENDING, ждёт ручной модерации в
+// web-admin (ТЗ 3.7 "ручная модерация спорных распознаваний"), баллы
+// начисляются только при CONFIRMED.
+enum LprSubmissionStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+model LprSubmission {
+  id                 String              @id @default(uuid())
+  submittedByUserId  String
+  submittedBy        User                @relation("LprSubmittedBy", fields: [submittedByUserId], references: [id])
+  storageKey         String // фото в StorageAdapter (см. backend/src/media/storage) — переиспользуем, не своё хранилище
+  mimeType           String
+  sizeBytes          Int
+  iv                 String // AES-256-GCM initialization vector (base64) — тот же media-crypto.util, что ChatMedia
+  authTag            String // AES-256-GCM auth tag (base64)
+  detectedPlate      String?
+  confidence         Float? // 0..1, как вернул LprAdapter
+  status             LprSubmissionStatus @default(PENDING)
+  points             Int?
+  statEventId        String?             @unique
+  reviewedByUserId   String?
+  reviewedBy         User?               @relation("LprReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt         DateTime?
+  createdAt          DateTime            @default(now())
+
+  @@index([submittedByUserId])
+  @@index([status])
+}
