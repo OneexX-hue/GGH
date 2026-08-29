@@ -1,0 +1,1142 @@
+# Сгенерировано из Zod-схем: pnpm run gen:openapi. Не редактировать вручную.
+openapi: "3.0.3"
+info:
+  title: Quest Platform API
+  version: "0.1.0"
+  description: "API городского квеста. Один и тот же контракт обслуживает веб и мобильные приложения.\n\nВсе ответы, связанные со временем, содержат serverTime: клиент считает таймер относительно него, а не по часам устройства."
+servers:
+  -
+    url: "http://localhost:8080"
+    description: Разработка
+paths:
+  /health:
+    get:
+      summary: Проверка живости и текущее время сервера
+      security: []
+      responses:
+        "200":
+          description: Сервер работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  serverTime:
+                    type: integer
+  /api/register:
+    post:
+      summary: Регистрация игрока и выдача токена
+      description: Повторный вызов с тем же deviceId возвращает существующего игрока с новым токеном — переустановка приложения не теряет прогресс команды.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: Игрок уже был зарегистрирован на этом устройстве
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "201":
+          description: Игрок создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "404":
+          description: Событие не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Игра завершена, регистрация закрыта
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/me:
+    get:
+      summary: Текущий игрок и его команда
+      responses:
+        "200":
+          description: Игрок
+        "401":
+          description: Токен недействителен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/game-state:
+    get:
+      summary: Состояние игры для авторизованного игрока
+      responses:
+        "200":
+          description: Состояние
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameState"
+  /api/events/{slug}/state:
+    get:
+      summary: Состояние игры без авторизации
+      security: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Состояние
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameState"
+        "404":
+          description: Событие не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/events/{slug}/stream:
+    get:
+      summary: Поток изменений (Server-Sent Events)
+      description: "text/event-stream. Сообщения вида {\"type\":\"game-state\"|\"tasks-changed\"} — сигнал перезапросить соответствующие данные. Клиенты без SSE опрашивают API раз в 30 секунд."
+      security: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Открытый поток событий
+  /api/tasks:
+    get:
+      summary: Задания глазами игрока
+      description: "Поля code нет намеренно: ответ не должен попадать на устройство до сдачи. Баллов тоже нет — ни суммы команды, ни номинала УЖЕ СДАННОГО задания (сложив номиналы сданных, игрок восстановил бы свой счёт). У несданных заданий номинал остаётся: он нужен для выбора маршрута."
+      responses:
+        "200":
+          description: Задания с отметкой «сдано»
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  serverTime:
+                    type: integer
+  /api/quality-codes:
+    get:
+      summary: Шкала оценки качества (баллы и подписи, без самих кодов)
+      responses:
+        "200":
+          description: Шкала
+  /api/submissions/code:
+    post:
+      summary: Отправка кода задания
+      description: "Идемпотентно по idempotencyKey: повторная доставка из офлайн-очереди возвращает исходный результат и не начисляет баллы второй раз. Начисленных баллов в ответе нет — счёт доступен только организатору."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCodeRequest"
+      responses:
+        "200":
+          description: Результат проверки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitCodeResponse"
+        "404":
+          description: Задание не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/submissions/quality:
+    post:
+      summary: Отправка кода оценки качества
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimQualityRequest"
+      responses:
+        "200":
+          description: Результат
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitCodeResponse"
+  /api/admin/events/{slug}/command:
+    post:
+      summary: "Управление игрой: start / pause / resume / stop / reset"
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameCommand"
+      responses:
+        "200":
+          description: Новое состояние
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameState"
+        "400":
+          description: Переход невозможен из текущего состояния
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Неверный админский токен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/admin/events/{slug}/tasks:
+    get:
+      summary: Задания с кодами и готовыми QR-строками
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Задания
+    post:
+      summary: Создать задание
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpsert"
+      responses:
+        "201":
+          description: Создано
+  /api/admin/events/{slug}/tasks/{taskId}:
+    put:
+      summary: Изменить задание
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+        -
+          name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpsert"
+      responses:
+        "200":
+          description: Изменено
+    delete:
+      summary: Удалить задание
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+        -
+          name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Удалено
+  /api/admin/events/{slug}/players:
+    get:
+      summary: Игроки события с признаком присутствия
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Игроки
+  /api/admin/archives:
+    get:
+      summary: Архив итогов прошедших игр
+      description: Снимок табло пишется при завершении игры и перед сбросом. Сброс удаляет отправки безвозвратно, поэтому архив — единственное, что сохраняет итоги проведённого квеста.
+      security:
+        -
+          adminToken: []
+      responses:
+        "200":
+          description: Снимки, свежие сверху
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventArchive"
+  /api/admin/events/{slug}/scoreboard:
+    get:
+      summary: Табло для организатора — доступно и во время игры
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Табло
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scoreboard"
+  /api/admin/events/{slug}/attempts:
+    get:
+      summary: Журнал попыток ввода кодов (анти-чит)
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: Попытки, свежие сверху
+  /api/admin/events/{slug}/export.csv:
+    get:
+      summary: Выгрузка итогов в CSV
+      security:
+        -
+          adminToken: []
+      parameters:
+        -
+          name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор события в URL.
+      responses:
+        "200":
+          description: CSV-файл
+          content:
+            text/csv: {}
+components:
+  schemas:
+    QuestEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        slug:
+          type: string
+          pattern: ^[a-z0-9-]{3,48}$
+        status:
+          type: string
+          enum:
+            - draft
+            - running
+            - paused
+            - finished
+        durationMs:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9007199254740991
+        startedAt:
+          nullable: true
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        pausedAt:
+          nullable: true
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        totalPausedMs:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - id
+        - name
+        - slug
+        - status
+        - durationMs
+        - startedAt
+        - pausedAt
+        - totalPausedMs
+        - createdAt
+      additionalProperties: false
+    GameState:
+      type: object
+      properties:
+        event:
+          type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+              maxLength: 64
+            name:
+              type: string
+              minLength: 1
+              maxLength: 120
+            slug:
+              type: string
+              pattern: ^[a-z0-9-]{3,48}$
+            status:
+              type: string
+              enum:
+                - draft
+                - running
+                - paused
+                - finished
+            durationMs:
+              type: integer
+              minimum: 0
+              exclusiveMinimum: true
+              maximum: 9007199254740991
+            startedAt:
+              nullable: true
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            pausedAt:
+              nullable: true
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            totalPausedMs:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            createdAt:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+          required:
+            - id
+            - name
+            - slug
+            - status
+            - durationMs
+            - startedAt
+            - pausedAt
+            - totalPausedMs
+            - createdAt
+          additionalProperties: false
+        serverTime:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        remainingMs:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        elapsedMs:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - event
+        - serverTime
+        - remainingMs
+        - elapsedMs
+      additionalProperties: false
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - id
+        - eventId
+        - name
+        - createdAt
+      additionalProperties: false
+    Player:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        teamId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        role:
+          type: string
+          enum:
+            - player
+            - judge
+            - organizer
+        createdAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        lastSeenAt:
+          nullable: true
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - id
+        - eventId
+        - teamId
+        - name
+        - role
+        - createdAt
+        - lastSeenAt
+      additionalProperties: false
+    RegisterRequest:
+      type: object
+      properties:
+        eventSlug:
+          type: string
+          minLength: 1
+        playerName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        teamName:
+          type: string
+          minLength: 1
+          maxLength: 80
+        deviceId:
+          type: string
+          minLength: 8
+          maxLength: 128
+      required:
+        - eventSlug
+        - playerName
+        - teamName
+        - deviceId
+      additionalProperties: false
+    RegisterResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 32
+        player:
+          type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+              maxLength: 64
+            eventId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            teamId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            name:
+              type: string
+              minLength: 1
+              maxLength: 80
+            role:
+              type: string
+              enum:
+                - player
+                - judge
+                - organizer
+            createdAt:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            lastSeenAt:
+              nullable: true
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+          required:
+            - id
+            - eventId
+            - teamId
+            - name
+            - role
+            - createdAt
+            - lastSeenAt
+          additionalProperties: false
+        team:
+          type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+              maxLength: 64
+            eventId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            name:
+              type: string
+              minLength: 1
+              maxLength: 80
+            createdAt:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+          required:
+            - id
+            - eventId
+            - name
+            - createdAt
+          additionalProperties: false
+      required:
+        - token
+        - player
+        - team
+      additionalProperties: false
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        orderIndex:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 4000
+        points:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        verification:
+          type: string
+          enum:
+            - code
+            - photo
+        lat:
+          nullable: true
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          nullable: true
+          type: number
+          minimum: -180
+          maximum: 180
+        radiusM:
+          nullable: true
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9007199254740991
+        qualityEnabled:
+          type: boolean
+      required:
+        - id
+        - eventId
+        - orderIndex
+        - title
+        - description
+        - points
+        - verification
+        - lat
+        - lng
+        - radiusM
+        - qualityEnabled
+      additionalProperties: false
+    TaskUpsert:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          default: ""
+          type: string
+          maxLength: 4000
+        code:
+          default: null
+          nullable: true
+          type: string
+          minLength: 1
+          maxLength: 64
+        points:
+          default: 10
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        verification:
+          default: code
+          type: string
+          enum:
+            - code
+            - photo
+        orderIndex:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        lat:
+          default: null
+          nullable: true
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          default: null
+          nullable: true
+          type: number
+          minimum: -180
+          maximum: 180
+        radiusM:
+          default: null
+          nullable: true
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9007199254740991
+        qualityEnabled:
+          default: false
+          type: boolean
+      required:
+        - title
+        - description
+        - code
+        - points
+        - verification
+        - lat
+        - lng
+        - radiusM
+        - qualityEnabled
+      additionalProperties: false
+    SubmitCodeRequest:
+      type: object
+      properties:
+        taskId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        idempotencyKey:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        submittedAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        coords:
+          type: object
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+            accuracyM:
+              type: number
+              minimum: 0
+          required:
+            - lat
+            - lng
+          additionalProperties: false
+      required:
+        - taskId
+        - code
+        - idempotencyKey
+      additionalProperties: false
+    SubmitCodeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - accepted
+            - rejected
+            - pending_review
+        reason:
+          nullable: true
+          type: string
+          enum:
+            - wrong_code
+            - already_solved
+            - too_far
+            - game_not_running
+            - rate_limited
+        distanceM:
+          nullable: true
+          type: number
+          minimum: 0
+      required:
+        - status
+        - reason
+        - distanceM
+      additionalProperties: false
+    ClaimQualityRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        taskId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        idempotencyKey:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - code
+        - taskId
+        - idempotencyKey
+      additionalProperties: false
+    QualityCode:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        code:
+          type: string
+        points:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        label:
+          type: string
+      required:
+        - id
+        - eventId
+        - code
+        - points
+        - label
+      additionalProperties: false
+    Scoreboard:
+      type: object
+      properties:
+        serverTime:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              teamId:
+                type: string
+                minLength: 1
+                maxLength: 64
+              teamName:
+                type: string
+              solvedCount:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              taskPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              qualityPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              totalPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              lastSolvedAt:
+                nullable: true
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - teamId
+              - teamName
+              - solvedCount
+              - taskPoints
+              - qualityPoints
+              - totalPoints
+              - lastSolvedAt
+            additionalProperties: false
+      required:
+        - serverTime
+        - rows
+      additionalProperties: false
+    EventArchive:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        eventName:
+          type: string
+        eventSlug:
+          type: string
+        reason:
+          type: string
+          enum:
+            - finished
+            - reset
+        finishedAt:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        durationMs:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        teamCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        rows:
+          type: array
+          items:
+            type: object
+            properties:
+              teamId:
+                type: string
+                minLength: 1
+                maxLength: 64
+              teamName:
+                type: string
+              solvedCount:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              taskPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              qualityPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              totalPoints:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              lastSolvedAt:
+                nullable: true
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+            required:
+              - teamId
+              - teamName
+              - solvedCount
+              - taskPoints
+              - qualityPoints
+              - totalPoints
+              - lastSolvedAt
+            additionalProperties: false
+      required:
+        - id
+        - eventId
+        - eventName
+        - eventSlug
+        - reason
+        - finishedAt
+        - durationMs
+        - teamCount
+        - rows
+      additionalProperties: false
+    GameCommand:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - start
+            - pause
+            - resume
+            - stop
+            - reset
+        durationMs:
+          type: integer
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9007199254740991
+        confirmation:
+          type: string
+      required:
+        - action
+      additionalProperties: false
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details: {}
+          required:
+            - code
+            - message
+          additionalProperties: false
+      required:
+        - error
+      additionalProperties: false
+  securitySchemes:
+    playerToken:
+      type: http
+      scheme: bearer
+      description: Токен игрока, выданный POST /api/register. Хранится в SecureStore / localStorage.
+    adminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
+      description: Общий секрет организатора (переменная окружения ADMIN_TOKEN).
+security:
+  -
+    playerToken: []

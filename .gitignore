@@ -47,3 +47,16 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Quest Platform
+apps/api/data/
+apps/api/dist/
+apps/web/dist/
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local

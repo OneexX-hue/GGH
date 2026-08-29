@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/core": ["lib/core/src/index.ts"],
+      "@workspace/core/*": ["lib/core/src/*"],
+      "@workspace/db": ["lib/db/src/index.ts"],
+      "@workspace/api-client": ["lib/api-client/src/index.ts"],
+      "@workspace/api-client/*": ["lib/api-client/src/*"]
+    }
+  }
+}
