@@ -1,0 +1,38 @@
+{
+  "Фоны": {
+    "bg-stage": "#050506",
+    "bg-device": "#0A0C0E",
+    "bg-screen": "#060809",
+    "bg-window": "#08090B",
+    "bg-surface-1": "#0B0D10",
+    "bg-surface-2": "#0E1114",
+    "bg-surface-3": "#14181C",
+    "bg-bubble-out": "#24272B",
+    "bg-bubble-in": "#202226",
+    "bg-elevated": "#191D21"
+  },
+  "Линии": {
+    "line-hairline": "rgba(255, 255, 255, .055)",
+    "line-soft": "rgba(255, 255, 255, .085)",
+    "line-strong": "rgba(255, 255, 255, .14)"
+  },
+  "Текст": {
+    "text-1": "#F4F6F8",
+    "text-2": "#C6CCD2",
+    "text-3": "#8E979F",
+    "text-4": "#666F77",
+    "text-5": "#4A5158"
+  },
+  "Акценты": {
+    "accent": "#E8EDF2",
+    "accent-dim": "rgba(232, 237, 242, .16)",
+    "danger": "#E5483C",
+    "glow": "rgba(180, 205, 228, .18)"
+  },
+  "Прочее": {
+    "meter-on": "#6E96B8",
+    "switch-track": "#2A2F34",
+    "switch-track-on": "#3B4249",
+    "switch-knob": "#F1F4F7"
+  }
+}

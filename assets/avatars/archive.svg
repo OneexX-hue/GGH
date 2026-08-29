@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <clipPath id="cr"><circle cx="32" cy="32" r="32"/></clipPath>
+    <radialGradient id="bgr" cx="38%" cy="26%" r="82%">
+      <stop offset="0" stop-color="#3E4751"/><stop offset=".42" stop-color="#141A21"/><stop offset="1" stop-color="#05080B"/>
+    </radialGradient>
+    <linearGradient id="rimr" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C4D0DA" stop-opacity=".78"/><stop offset=".55" stop-color="#49535C" stop-opacity=".38"/><stop offset="1" stop-color="#0A0F14" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="torr" x1=".2" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#2C343C"/><stop offset="1" stop-color="#080C10"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#cr)">
+    <rect width="64" height="64" fill="url(#bgr)"/>
+    <path d="M13 64c1.4-12.6 8.6-19 19-19s17.6 6.4 19 19Z" fill="url(#torr)"/>
+    <path d="M32 13.5c-8 0-13 5.8-13 13.8 0 7.6 4 14.7 13 14.7s13-7.1 13-14.7c0-8-5-13.8-13-13.8Z" fill="#070C11" stroke="#C7D4DF" stroke-opacity=".18" stroke-width=".8"/>
+    <path d="M32 13.5c-8 0-13 5.8-13 13.8 0 2.6.5 5.2 1.4 7.5-.2-9 3.5-15.9 11.6-15.9 5.1 0 8.8 2.9 10.7 7.3-.5-8.4-4.6-12.7-10.7-12.7Z" fill="url(#rimr)" opacity=".75"/>
+    <path d="M23.4 28.2c2.3-1.5 5-1.5 7.3 0-2.2 1.4-5 1.4-7.3 0Zm10.9 0c2.3-1.5 5-1.5 7.3 0-2.2 1.4-5 1.4-7.3 0Z" fill="#B9C7D3" fill-opacity=".45"/>
+    <rect width="64" height="64" fill="#04070A" opacity=".16"/>
+    <circle cx="32" cy="32" r="31.5" fill="none" stroke="#FFFFFF" stroke-opacity=".10"/>
+  </g>
+</svg>
